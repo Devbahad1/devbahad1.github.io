@@ -123,6 +123,10 @@ function authenticatedRoute(session, loading, component) {
 export default () => {
     const { session, loading } = useSession();
 
+    useEffect(() => {
+        document.title = 'Migdalor';
+    }, []);
+
     return (
         <Router>
             <Routes>
