@@ -128,7 +128,7 @@ export default () => {
     }, []);
 
     return (
-        <Router>
+        <Router basename="/Migdalor_web">            
             <Routes>
                 <Route element={<MainLayout />}>
 
