@@ -1,4 +1,6 @@
-import { Route, BrowserRouter as Router, Routes, Navigate } from 'react-router';
+// import { Route, BrowserRouter, HashRouter as Router, Routes, Navigate } from 'react-router';
+import { Route, BrowserRouter, HashRouter, Routes, Navigate } from 'react-router';
+
 import LoginPage from './pages/LoginPage/LoginPage';
 import LogoutPage from './pages/LogoutPage/LogoutPage';
 import HomePage from './pages/HomePage/HomePage';
@@ -17,6 +19,7 @@ import AdminRequests from './pages/AdminRequestsPage/AdminRequestsPage';
 import ManagePermissions from 'pages/ManagePermissionsPage/ManagePermissionsPage';
 import ManageHierarchyPage from 'pages/ManageHierarchyPage/ManageHierarchyPage';
 
+const Router = process.env.NODE_ENV === 'production' ? HashRouter : BrowserRouter;
 
 
 // קומפוננט לבדיקת הרשאות מנהל
@@ -128,10 +131,9 @@ export default () => {
     // }, []);
 
     return (
-        <Router basename="/Migdalor_web">            
+        <Router basename="/Migdalor_web">
             <Routes>
                 <Route element={<MainLayout />}>
-
                     <Route path="/Home" element={authenticatedRoute(session, loading, <HomePage />)} />
                     <Route path="/ManageKeys" element={authenticatedRoute(session, loading, <KeysManagerPage />)} />
                     <Route path="/Schedule" element={authenticatedRoute(session, loading, <SchedulePage />)} />
@@ -141,7 +143,7 @@ export default () => {
                     <Route path="/KeyRequests" element={authenticatedRoute(session, loading, <KeyRequests />)} />
                     <Route path="/Submitkeyrequest" element={authenticatedRoute(session, loading, <Submitkeyrequest />)} />
                     <Route path="/ManagePermissions" element={authenticatedRoute(session, loading, <ManagePermissions />)} />
-                    <Route path="/ManageHierarchy" element={authenticatedRoute(session, loading, <ManageHierarchyPage />)} />  
+                    <Route path="/ManageHierarchy" element={authenticatedRoute(session, loading, <ManageHierarchyPage />)} />
                     <Route path='/MangeRequests' element={authenticatedRoute(session, loading, <AdminRequests />)} />
                     {/* <Route path="/admin" element={
                         <AdminRoute>
