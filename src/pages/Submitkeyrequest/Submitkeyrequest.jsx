@@ -3,14 +3,15 @@ import {
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Send, Calendar, ChevronLeft, ChevronRight, Plus, Minus, RotateCcw, Save
+    Send, Calendar, ChevronLeft, ChevronRight, Plus, Minus, RotateCcw, Save, ShieldAlert
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
-import { useOutletContext } from 'react-router';
+import { useOutletContext, useNavigate } from 'react-router';
 import { supabase } from 'lib/supabaseClient';
 
 export default function SubmitKeyRequest() {
     const { user, isDark } = useOutletContext();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [error, setError] = useState(null);
@@ -27,6 +28,20 @@ export default function SubmitKeyRequest() {
 
     const THEME_COLOR = '#10b981'; 
     const UPDATE_COLOR = '#3b82f6';
+
+    // בדיקת הרשאות גישה
+    const isAdmin = user?.roles?.includes('מנהל');
+    const isBattalionCommander = user?.roles?.includes('קה״ד גדודי');
+    const hasAccess = isAdmin || isBattalionCommander;
+
+    // בדיקת הרשאות בטעינה ראשונית
+    useEffect(() => {
+        if (!user) return;
+        if (!hasAccess) {
+            navigate('/home');
+            return;
+        }
+    }, [user, hasAccess, navigate]);
 
     const getNextWednesday = (weeks) => {
         const d = new Date();
@@ -74,6 +89,8 @@ export default function SubmitKeyRequest() {
     }, [user?.group_id]);
 
     useEffect(() => {
+        if (!hasAccess) return;
+        
         const targetWednesday = getNextWednesday(wednesdayOffset);
         const dateStr = targetWednesday.toISOString().split('T')[0];
         
@@ -83,7 +100,7 @@ export default function SubmitKeyRequest() {
         
         setFormData(prev => ({ ...prev, range_start: dateStr, range_end: dateStr }));
         fetchExistingRequest(dateStr);
-    }, [wednesdayOffset, fetchExistingRequest]);
+    }, [wednesdayOffset, fetchExistingRequest, hasAccess]);
 
     const handleOffsetChange = (delta) => {
         if (delta < 0 && wednesdayOffset === 0) return;
@@ -171,6 +188,30 @@ export default function SubmitKeyRequest() {
             </Box>
         </Paper>
     );
+
+    // מסך טעינה
+    if (!user) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    // מסך חוסר הרשאה
+    if (!hasAccess) {
+        return (
+            <Container maxWidth="sm" sx={{ py: 10, textAlign: 'center' }}>
+                <ShieldAlert size={64} color="#ef4444" />
+                <Typography variant="h5" sx={{ mt: 2, fontWeight: 700, color: isDark ? 'white' : '#1e293b' }}>
+                    אין הרשאת גישה
+                </Typography>
+                <Typography sx={{ mt: 1, color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
+                    דף זה מיועד למנהלים וקה"ד גדודי בלבד
+                </Typography>
+            </Container>
+        );
+    }
 
     return (
         <Container maxWidth="sm" sx={{ py: 6, direction: 'rtl' }}>

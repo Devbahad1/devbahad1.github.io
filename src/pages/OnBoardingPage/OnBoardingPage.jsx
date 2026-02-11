@@ -43,6 +43,9 @@ export default function OnboardingPage() {
     // Cache לקבוצות
     const [groupsCache, setGroupsCache] = useState(null);
 
+    // ID של בה"ד 1 (ברירת מחדל אם לא נבחר גדוד)
+    const BAHAD_1_ID = 13;
+
     useEffect(() => {
         const fetchUserAndData = async () => {
             try {
@@ -203,7 +206,24 @@ export default function OnboardingPage() {
 
         try {
             // המרת role לערך מספרי
-            const roleId = formData.role === 'צוער' ? 7 : 6; // לפי הצורך, התאם את המספרים
+            const roleId = formData.role === 'צוער' ? 7 : 6;
+            
+            // קביעת group_id לפי ההיררכיה:
+            // 1. אם בחר צוות → שומר את הצוות
+            // 2. אם בחר רק פלוגה → שומר את הפלוגה
+            // 3. אם בחר רק גדוד → שומר את הגדוד
+            // 4. אם לא בחר כלום → שומר את בה"ד 1 (ID: 13)
+            let groupId;
+            if (formData.team) {
+                groupId = formData.team;
+            } else if (formData.company) {
+                groupId = formData.company;
+            } else if (formData.battalion) {
+                groupId = formData.battalion;
+            } else {
+                groupId = BAHAD_1_ID; // ברירת מחדל: בה"ד 1
+            }
+            
             // שמירת המשתמש בטבלת users
             const { error: insertError } = await supabase
                 .from('users')
@@ -212,7 +232,7 @@ export default function OnboardingPage() {
                     email: user.email,
                     full_name: formData.fullName,
                     phone: formData.phone,
-                    group_id: formData.team, // שומרים רק את ה-ID של הצוות
+                    group_id: groupId,
                     status: 'pending',
                     created_date: new Date().toISOString(),
                     updated_date: new Date().toISOString()
@@ -225,7 +245,7 @@ export default function OnboardingPage() {
                     .update({
                         full_name: formData.fullName,
                         phone: formData.phone,
-                        group_id: formData.team, // שומרים רק את ה-ID של הצוות
+                        group_id: groupId,
                         status: 'pending',
                         updated_date: new Date().toISOString()
                     })
@@ -248,7 +268,7 @@ export default function OnboardingPage() {
                 .from('user_roles')
                 .insert({
                     user_id: user.id,
-                    role_id: roleId, // ← make sure this matches the correct role (צוער=7, סגל=6)
+                    role_id: roleId,
                     assigned_date: new Date().toISOString()
                 });
 
@@ -265,7 +285,7 @@ export default function OnboardingPage() {
         }
     };
 
-    const isFormValid = formData.fullName && formData.phone && formData.battalion && formData.company && formData.team && formData.role;
+    const isFormValid = formData.fullName && formData.phone && formData.role;
 
     // מסך טעינה
     if (pageLoading) {
@@ -410,7 +430,7 @@ export default function OnboardingPage() {
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                         <Typography variant="body2" sx={{ fontWeight: 600, color: isDark ? 'white' : '#1f2937' }}>
-                                            שם מלא (בעברית)
+                                            שם מלא (בעברית) *
                                         </Typography>
                                         <UserPlus size={20} style={{ color: '#6366f1' }} />
                                     </Box>
@@ -429,7 +449,7 @@ export default function OnboardingPage() {
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                         <Typography variant="body2" sx={{ fontWeight: 600, color: isDark ? 'white' : '#1f2937' }}>
-                                            מספר טלפון
+                                            מספר טלפון *
                                         </Typography>
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
                                             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -459,7 +479,7 @@ export default function OnboardingPage() {
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                                         <Typography variant="body2" sx={{ fontWeight: 600, color: isDark ? 'white' : '#1f2937' }}>
-                                            תפקיד
+                                            תפקיד *
                                         </Typography>
                                         <Shield size={20} style={{ color: '#8b5cf6' }} />
                                     </Box>
@@ -510,14 +530,14 @@ export default function OnboardingPage() {
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                         <Typography variant="body2" sx={{ fontWeight: 600, color: isDark ? 'white' : '#1f2937' }}>
-                                            גדוד
+                                            גדוד (אופציונלי)
                                         </Typography>
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
                                             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                                             <polyline points="9 22 9 12 15 12 15 22" />
                                         </svg>
                                     </Box>
-                                    <FormControl fullWidth required>
+                                    <FormControl fullWidth>
                                         <Select
                                             value={formData.battalion}
                                             onChange={handleChange('battalion')}
@@ -543,7 +563,7 @@ export default function OnboardingPage() {
                                                 }
                                             }}
                                         >
-                                            <MenuItem value="" disabled>בחר גדוד</MenuItem>
+                                            <MenuItem value="">ללא גדוד (שיוך לבה"ד 1)</MenuItem>
                                             {battalions.map((battalion) => (
                                                 <MenuItem key={battalion.id} value={battalion.id}>{battalion.name}</MenuItem>
                                             ))}
@@ -554,7 +574,7 @@ export default function OnboardingPage() {
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                         <Typography variant="body2" sx={{ fontWeight: 600, color: isDark ? 'white' : '#1f2937' }}>
-                                            פלוגה
+                                            פלוגה (אופציונלי)
                                         </Typography>
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
                                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -562,7 +582,7 @@ export default function OnboardingPage() {
                                             <line x1="9" y1="21" x2="9" y2="9" />
                                         </svg>
                                     </Box>
-                                    <FormControl fullWidth required disabled={!formData.battalion}>
+                                    <FormControl fullWidth disabled={!formData.battalion}>
                                         <Select
                                             value={formData.company}
                                             onChange={handleChange('company')}
@@ -588,8 +608,8 @@ export default function OnboardingPage() {
                                                 }
                                             }}
                                         >
-                                            <MenuItem value="" disabled>
-                                                {formData.battalion ? 'בחר פלוגה' : 'בחר גדוד תחילה'}
+                                            <MenuItem value="">
+                                                {formData.battalion ? 'ללא פלוגה (שיוך לגדוד)' : 'בחר גדוד תחילה'}
                                             </MenuItem>
                                             {companies.map((company) => (
                                                 <MenuItem key={company.id} value={company.id}>{company.name}</MenuItem>
@@ -601,11 +621,11 @@ export default function OnboardingPage() {
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                         <Typography variant="body2" sx={{ fontWeight: 600, color: isDark ? 'white' : '#1f2937' }}>
-                                            צוות
+                                            צוות (אופציונלי)
                                         </Typography>
                                         <Users size={20} style={{ color: '#f59e0b' }} />
                                     </Box>
-                                    <FormControl fullWidth required disabled={!formData.company}>
+                                    <FormControl fullWidth disabled={!formData.company}>
                                         <Select
                                             value={formData.team}
                                             onChange={handleChange('team')}
@@ -631,8 +651,8 @@ export default function OnboardingPage() {
                                                 }
                                             }}
                                         >
-                                            <MenuItem value="" disabled>
-                                                {formData.company ? 'בחר צוות' : 'בחר פלוגה תחילה'}
+                                            <MenuItem value="">
+                                                {formData.company ? 'ללא צוות (שיוך לפלוגה)' : 'בחר פלוגה תחילה'}
                                             </MenuItem>
                                             {teams.map((team) => (
                                                 <MenuItem key={team.id} value={team.id}>{team.name}</MenuItem>

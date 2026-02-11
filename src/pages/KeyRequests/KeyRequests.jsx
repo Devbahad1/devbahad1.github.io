@@ -9,7 +9,7 @@ import {
   Key, CheckCircle, Clock, Calendar, ChevronLeft, ChevronRight, ShieldAlert, RotateCcw, Pencil, Save, X, Trash2, Plus, Minus, AlertTriangle
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
-import { useOutletContext } from 'react-router';
+import { useOutletContext, useNavigate } from 'react-router';
 import { BAHAD_GROUP_KEY_ID } from 'lib/consts';
 import { supabase } from 'lib/supabaseClient';
 
@@ -41,7 +41,8 @@ const ConfirmDialog = ({ open, title, message, onConfirm, onCancel, confirmText 
 );
 
 export default function KeyRequestsPage() {
-  const { isDark } = useOutletContext();
+  const { isDark, user } = useOutletContext();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState([]);
   const [selectedWednesday, setSelectedWednesday] = useState('');
@@ -56,6 +57,20 @@ export default function KeyRequestsPage() {
   const THEME_COLOR = '#10b981';
   const UPDATE_COLOR = '#3b82f6';
   const ALERT_COLOR = '#ef4444';
+
+  // בדיקת הרשאות גישה
+  const isAdmin = user?.roles?.includes('מנהל');
+  const isBattalionCommander = user?.roles?.includes('קה״ד בה״די');
+  const hasAccess = isAdmin || isBattalionCommander;
+
+  // בדיקת הרשאות בטעינה ראשונית
+  useEffect(() => {
+    if (!user) return;
+    if (!hasAccess) {
+      navigate('/home');
+      return;
+    }
+  }, [user, hasAccess, navigate]);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -79,7 +94,11 @@ export default function KeyRequestsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
+  useEffect(() => { 
+    if (hasAccess) {
+      fetchRequests(); 
+    }
+  }, [fetchRequests, hasAccess]);
 
   useEffect(() => {
     const targetWednesday = getNextWednesday(wednesdayOffset);
@@ -145,7 +164,7 @@ const updateApprovedRequest = async (req) => {
     const { data: assignedThisWeek } = await supabase
       .from('key_assignments')
       .select('key_id')
-      .eq('assigned_at', selectedWednesday); // שינוי: לפי assigned_at במקום request_id
+      .eq('assigned_at', selectedWednesday);
     
     const assignedKeyIds = new Set(assignedThisWeek?.map(a => a.key_id) || []);
 
@@ -160,7 +179,7 @@ const updateApprovedRequest = async (req) => {
       .from('key_assignments')
       .select('key_id')
       .eq('request_id', req.id)
-      .eq('assigned_at', selectedWednesday); // שינוי: גם לפי assigned_at
+      .eq('assigned_at', selectedWednesday);
     
     const thisRequestKeyIds = new Set(thisRequestAssignments?.map(a => a.key_id) || []);
     const assignedKeys = allKeys?.filter(k => thisRequestKeyIds.has(k.id)) || [];
@@ -179,7 +198,6 @@ const updateApprovedRequest = async (req) => {
 
     // טיפול בחדרים צוותיים
     if (diffSmall > 0) {
-      // צריך להוסיף מפתחות
       for (let i = 0; i < diffSmall && smallAvailable.length > 0; i++) {
         const key = smallAvailable.shift();
         await supabase
@@ -187,12 +205,11 @@ const updateApprovedRequest = async (req) => {
           .insert({ 
             key_id: key.id, 
             request_id: req.id, 
-            assigned_at: selectedWednesday  // שינוי: התאריך של השבוע
+            assigned_at: selectedWednesday
           });
         finalSmall++;
       }
     } else if (diffSmall < 0) {
-      // צריך להחזיר מפתחות
       const toReturn = Math.min(Math.abs(diffSmall), smallAssigned.length);
       for (let i = 0; i < toReturn; i++) {
         const key = smallAssigned.shift();
@@ -201,7 +218,7 @@ const updateApprovedRequest = async (req) => {
           .delete()
           .eq('key_id', key.id)
           .eq('request_id', req.id)
-          .eq('assigned_at', selectedWednesday); // שינוי: גם לפי assigned_at
+          .eq('assigned_at', selectedWednesday);
         finalSmall--;
       }
     }
@@ -215,7 +232,7 @@ const updateApprovedRequest = async (req) => {
           .insert({ 
             key_id: key.id, 
             request_id: req.id, 
-            assigned_at: selectedWednesday  // שינוי: התאריך של השבוע
+            assigned_at: selectedWednesday
           });
         finalDotz++;
       }
@@ -228,7 +245,7 @@ const updateApprovedRequest = async (req) => {
           .delete()
           .eq('key_id', key.id)
           .eq('request_id', req.id)
-          .eq('assigned_at', selectedWednesday); // שינוי: גם לפי assigned_at
+          .eq('assigned_at', selectedWednesday);
         finalDotz--;
       }
     }
@@ -242,7 +259,7 @@ const updateApprovedRequest = async (req) => {
           .insert({ 
             key_id: key.id, 
             request_id: req.id, 
-            assigned_at: selectedWednesday  // שינוי: התאריך של השבוע
+            assigned_at: selectedWednesday
           });
         finalLarge++;
       }
@@ -255,7 +272,7 @@ const updateApprovedRequest = async (req) => {
           .delete()
           .eq('key_id', key.id)
           .eq('request_id', req.id)
-          .eq('assigned_at', selectedWednesday); // שינוי: גם לפי assigned_at
+          .eq('assigned_at', selectedWednesday);
         finalLarge--;
       }
     }
@@ -294,11 +311,10 @@ const updateApprovedRequest = async (req) => {
     setLoading(false);
   }
 };
-  // פונקציה למחיקת בקשה
+
   const handleDeleteRequest = async (req) => {
     setLoading(true);
     try {
-      // אם הבקשה כבר אושרה, נמחק את השיוכים מ-key_assignments
       if (req.status === 'approved') {
         await supabase
           .from('key_assignments')
@@ -336,19 +352,17 @@ const updateApprovedRequest = async (req) => {
 const resetDistribution = async (requestList) => {
   try {
     for (const req of requestList) {
-      // מחיקת כל השיוכים של הבקשה (לפי assigned_at)
       const { error: deleteError } = await supabase
         .from('key_assignments')
         .delete()
         .eq('request_id', req.id)
-        .eq('assigned_at', selectedWednesday); // שינוי: גם לפי השבוע
+        .eq('assigned_at', selectedWednesday);
       
       if (deleteError) {
         console.error('Error deleting assignments:', deleteError);
         return false;
       }
       
-      // איפוס הבקשה
       const { error: requestError } = await supabase
         .from('keys_request')
         .update({
@@ -390,7 +404,6 @@ const processDistribution = async (pendingList) => {
     return 0;
   }
 
-  // קבלת כל הבקשות המאושרות לשבוע זה
   const { data: weekApprovedRequests } = await supabase
     .from('keys_request')
     .select('id')
@@ -399,11 +412,10 @@ const processDistribution = async (pendingList) => {
 
   const approvedRequestIds = weekApprovedRequests?.map(r => r.id) || [];
 
-  // קבלת כל השיוכים הקיימים לשבוע זה (לפי assigned_at)
   const { data: existingAssignments } = await supabase
     .from('key_assignments')
     .select('key_id')
-    .eq('assigned_at', selectedWednesday); // שינוי: לפי assigned_at במקום request_id
+    .eq('assigned_at', selectedWednesday);
 
   const assignedKeyIds = new Set(existingAssignments?.map(a => a.key_id) || []);
   const availableKeys = allKeys.filter(k => !assignedKeyIds.has(k.id));
@@ -433,7 +445,6 @@ const processDistribution = async (pendingList) => {
 
     let assignedSmall = 0, assignedLarge = 0, assignedDotz = 0;
 
-    // חלוקת מפתחות צוותיים
     for (let i = 0; i < needsSmall && smallKeys.length > 0; i++) {
       const key = smallKeys.shift();
       console.log('Assigning small key:', key.id);
@@ -442,7 +453,7 @@ const processDistribution = async (pendingList) => {
         .insert({ 
           key_id: key.id, 
           request_id: req.id, 
-          assigned_at: selectedWednesday  // שינוי: התאריך של השבוע
+          assigned_at: selectedWednesday
         });
       
       if (error) {
@@ -453,7 +464,6 @@ const processDistribution = async (pendingList) => {
       }
     }
 
-    // חלוקת מפתחות דו"צ
     for (let i = 0; i < needsDotz && dotzKeys.length > 0; i++) {
       const key = dotzKeys.shift();
       console.log('Assigning dotz key:', key.id);
@@ -462,7 +472,7 @@ const processDistribution = async (pendingList) => {
         .insert({ 
           key_id: key.id, 
           request_id: req.id, 
-          assigned_at: selectedWednesday  // שינוי: התאריך של השבוע
+          assigned_at: selectedWednesday
         });
       
       if (error) {
@@ -473,7 +483,6 @@ const processDistribution = async (pendingList) => {
       }
     }
 
-    // חלוקת מפתחות פלוגתיים
     for (let i = 0; i < needsLarge && largeKeys.length > 0; i++) {
       const key = largeKeys.shift();
       console.log('Assigning large key:', key.id);
@@ -482,7 +491,7 @@ const processDistribution = async (pendingList) => {
         .insert({ 
           key_id: key.id, 
           request_id: req.id, 
-          assigned_at: selectedWednesday  // שינוי: התאריך של השבוע
+          assigned_at: selectedWednesday
         });
       
       if (error) {
@@ -505,7 +514,6 @@ const processDistribution = async (pendingList) => {
     });
   }
 
-  // עדכון הבקשות
   for (const reqUpdate of requestUpdates) {
     await supabase.from('keys_request').update(reqUpdate).eq('id', reqUpdate.id);
   }
@@ -523,6 +531,7 @@ const processDistribution = async (pendingList) => {
   setLoading(false);
   return requestUpdates.length;
 };
+
   const filteredRequests = requests.filter(req => req.range_start === selectedWednesday);
 
   const EditableCell = ({ value, field, req }) => {
@@ -558,6 +567,30 @@ const processDistribution = async (pendingList) => {
       </Typography>
     );
   };
+
+  // מסך טעינה
+  if (!user) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // מסך חוסר הרשאה
+  if (!hasAccess) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 10, textAlign: 'center' }}>
+        <ShieldAlert size={64} color="#ef4444" />
+        <Typography variant="h5" sx={{ mt: 2, fontWeight: 700, color: isDark ? 'white' : '#1e293b' }}>
+          אין הרשאת גישה
+        </Typography>
+        <Typography sx={{ mt: 1, color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
+          דף זה מיועד למנהלים וקה"ד גדודי בלבד
+        </Typography>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: 6, direction: 'rtl', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -665,7 +698,6 @@ const processDistribution = async (pendingList) => {
                       <>
                         <Tooltip title="ערוך"><MuiIconButton onClick={() => handleEditClick(req)} size="small" sx={{ color: UPDATE_COLOR }}><Pencil size={18} /></MuiIconButton></Tooltip>
                         
-                        {/* כפתור מחיקה */}
                         <Tooltip title="מחק בקשה">
                           <MuiIconButton 
                             onClick={() => setConfirmState({

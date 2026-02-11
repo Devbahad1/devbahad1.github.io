@@ -76,6 +76,9 @@ export default function AdminRequests() {
     const [currentUserHierarchy, setCurrentUserHierarchy] = useState(null);
     const [viewMode, setViewMode] = useState('all');
 
+    // ID של בה"ד 1 (ברירת מחדל)
+    const BAHAD_1_ID = 13;
+
     const isAdmin = user?.roles?.includes('מנהל');
     const isStaff = user?.roles?.includes('סגל');
     const hasAccess = isAdmin || isStaff;
@@ -160,15 +163,47 @@ export default function AdminRequests() {
         '& .MuiOutlinedInput-notchedOutline': { textAlign: 'right', '& legend': { textAlign: 'right', width: 'auto' } }
     };
 
-    const resolveHierarchyFromTeam = (teamId) => {
-        if (!teamId) return { battalion_id: '', company_id: '', team_id: '' };
+    const resolveHierarchyFromGroupId = (groupId) => {
+        if (!groupId) return { battalion_id: '', company_id: '', team_id: '' };
+        
         const all = [...battalions, ...companies, ...teams];
         const map = Object.fromEntries(all.map(n => [n.id, n]));
-        const team = map[String(teamId)];
-        if (!team) return { battalion_id: '', company_id: '', team_id: String(teamId) };
-        const company = team.parent_id ? map[team.parent_id] : null;
-        const battalion = company?.parent_id ? map[company.parent_id] : null;
-        return { team_id: team.id, company_id: company?.id || '', battalion_id: battalion?.id || '' };
+        const currentNode = map[String(groupId)];
+        
+        if (!currentNode) return { battalion_id: '', company_id: '', team_id: '' };
+
+        // אם זה צוות (group_type_id === 4)
+        if (currentNode.group_type_id === 4) {
+            const company = currentNode.parent_id ? map[currentNode.parent_id] : null;
+            const battalion = company?.parent_id ? map[company.parent_id] : null;
+            return { 
+                team_id: currentNode.id, 
+                company_id: company?.id || '', 
+                battalion_id: battalion?.id || '' 
+            };
+        }
+        
+        // אם זה פלוגה (group_type_id === 3)
+        if (currentNode.group_type_id === 3) {
+            const battalion = currentNode.parent_id ? map[currentNode.parent_id] : null;
+            return { 
+                team_id: '', 
+                company_id: currentNode.id, 
+                battalion_id: battalion?.id || '' 
+            };
+        }
+        
+        // אם זה גדוד (group_type_id === 2)
+        if (currentNode.group_type_id === 2) {
+            return { 
+                team_id: '', 
+                company_id: '', 
+                battalion_id: currentNode.id 
+            };
+        }
+        
+        // אחרת (כולל בה"ד 1)
+        return { battalion_id: '', company_id: '', team_id: '' };
     };
 
     const fetchRequests = async () => {
@@ -252,7 +287,19 @@ export default function AdminRequests() {
     const openDialog = (request) => { setSelectedRequest(request); setDialogOpen(true); handleMenuClose(); };
     const openRejectDialog = (request) => { setSelectedRequest(request); setRejectionReason(''); setRejectDialogOpen(true); handleMenuClose(); };
     const openDeleteDialog = (request) => { setSelectedRequest(request); setDeleteDialogOpen(true); handleMenuClose(); };
-    const openEditDialog = (request) => { setSelectedRequest(request); const { battalion_id, company_id, team_id } = resolveHierarchyFromTeam(request.group_id); setEditForm({ full_name: request.full_name || '', phone: request.phone || '', battalion_id, company_id, team_id }); setEditDialogOpen(true); handleMenuClose(); };
+    const openEditDialog = (request) => { 
+        setSelectedRequest(request); 
+        const hierarchy = resolveHierarchyFromGroupId(request.group_id);
+        setEditForm({ 
+            full_name: request.full_name || '', 
+            phone: request.phone || '', 
+            battalion_id: hierarchy.battalion_id, 
+            company_id: hierarchy.company_id, 
+            team_id: hierarchy.team_id 
+        }); 
+        setEditDialogOpen(true); 
+        handleMenuClose(); 
+    };
     const openEditRolesDialog = (request) => { setSelectedUserForRoles(request); setSelectedRoles(userRolesMap[request.id] || []); setEditRolesDialogOpen(true); handleMenuClose(); };
     const handleRoleToggle = (roleId) => { setSelectedRoles(prev => prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]); };
 
@@ -273,9 +320,42 @@ export default function AdminRequests() {
 
     const handleEditSave = async () => {
         if (!selectedRequest) return;
-        if (!editForm.full_name?.trim()) { setSnackbar({ open: true, message: 'שם מלא הוא שדה חובה', severity: 'error' }); return; }
-        const { error } = await supabase.from('users').update({ full_name: editForm.full_name, phone: editForm.phone || null, group_id: editForm.team_id || null, updated_date: new Date().toISOString() }).eq('id', selectedRequest.id);
-        if (!error) { setSnackbar({ open: true, message: 'הפרטים עודכנו בהצלחה!', severity: 'success' }); await fetchRequests(); setEditDialogOpen(false); }
+        if (!editForm.full_name?.trim()) { 
+            setSnackbar({ open: true, message: 'שם מלא הוא שדה חובה', severity: 'error' }); 
+            return; 
+        }
+        
+        // קביעת group_id לפי ההיררכיה:
+        // 1. אם בחר צוות → שומר את הצוות
+        // 2. אם בחר רק פלוגה → שומר את הפלוגה
+        // 3. אם בחר רק גדוד → שומר את הגדוד
+        // 4. אם לא בחר כלום → שומר את בה"ד 1 (ID: 13)
+        let groupId;
+        if (editForm.team_id) {
+            groupId = editForm.team_id;
+        } else if (editForm.company_id) {
+            groupId = editForm.company_id;
+        } else if (editForm.battalion_id) {
+            groupId = editForm.battalion_id;
+        } else {
+            groupId = BAHAD_1_ID; // ברירת מחדל: בה"ד 1
+        }
+        
+        const { error } = await supabase
+            .from('users')
+            .update({ 
+                full_name: editForm.full_name, 
+                phone: editForm.phone || null, 
+                group_id: groupId, 
+                updated_date: new Date().toISOString() 
+            })
+            .eq('id', selectedRequest.id);
+            
+        if (!error) { 
+            setSnackbar({ open: true, message: 'הפרטים עודכנו בהצלחה!', severity: 'success' }); 
+            await fetchRequests(); 
+            setEditDialogOpen(false); 
+        }
         else setSnackbar({ open: true, message: 'שגיאה בעדכון הפרטים', severity: 'error' });
     };
 
@@ -424,9 +504,18 @@ export default function AdminRequests() {
                 <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <TextField label="שם מלא" value={editForm.full_name || ''} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} fullWidth sx={rtlFieldSx} InputLabelProps={{ shrink: true }} />
                     <TextField label="טלפון" value={editForm.phone || ''} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} fullWidth sx={rtlFieldSx} InputLabelProps={{ shrink: true }} />
-                    <TextField select label="גדוד" value={editForm.battalion_id || ''} onChange={(e) => setEditForm({ ...editForm, battalion_id: e.target.value, company_id: '', team_id: '' })} SelectProps={{ native: true }} fullWidth sx={rtlFieldSx} InputLabelProps={{ shrink: true }}><option value="" disabled></option>{battalions.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</TextField>
-                    <TextField select label="פלוגה" value={editForm.company_id || ''} onChange={(e) => setEditForm({ ...editForm, company_id: e.target.value, team_id: '' })} SelectProps={{ native: true }} fullWidth disabled={!editForm.battalion_id} sx={rtlFieldSx} InputLabelProps={{ shrink: true }}><option value="" disabled></option>{companies.filter(c => c.parent_id === editForm.battalion_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</TextField>
-                    <TextField select label="צוות" value={editForm.team_id || ''} onChange={(e) => setEditForm({ ...editForm, team_id: e.target.value })} SelectProps={{ native: true }} fullWidth disabled={!editForm.company_id} sx={rtlFieldSx} InputLabelProps={{ shrink: true }}><option value="" disabled></option>{teams.filter(t => t.parent_id === editForm.company_id).map(t => <option key={t.id} value={t.id}>{t.name.replace(/^צוות\s+/g, '')}</option>)}</TextField>
+                    <TextField select label="גדוד (אופציונלי)" value={editForm.battalion_id || ''} onChange={(e) => setEditForm({ ...editForm, battalion_id: e.target.value, company_id: '', team_id: '' })} SelectProps={{ native: true }} fullWidth sx={rtlFieldSx} InputLabelProps={{ shrink: true }}>
+                        <option value="">ללא גדוד (שיוך לבה"ד 1)</option>
+                        {battalions.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </TextField>
+                    <TextField select label="פלוגה (אופציונלי)" value={editForm.company_id || ''} onChange={(e) => setEditForm({ ...editForm, company_id: e.target.value, team_id: '' })} SelectProps={{ native: true }} fullWidth disabled={!editForm.battalion_id} sx={rtlFieldSx} InputLabelProps={{ shrink: true }}>
+                        <option value="">{editForm.battalion_id ? 'ללא פלוגה (שיוך לגדוד)' : 'בחר גדוד תחילה'}</option>
+                        {companies.filter(c => c.parent_id === editForm.battalion_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </TextField>
+                    <TextField select label="צוות (אופציונלי)" value={editForm.team_id || ''} onChange={(e) => setEditForm({ ...editForm, team_id: e.target.value })} SelectProps={{ native: true }} fullWidth disabled={!editForm.company_id} sx={rtlFieldSx} InputLabelProps={{ shrink: true }}>
+                        <option value="">{editForm.company_id ? 'ללא צוות (שיוך לפלוגה)' : 'בחר פלוגה תחילה'}</option>
+                        {teams.filter(t => t.parent_id === editForm.company_id).map(t => <option key={t.id} value={t.id}>{t.name.replace(/^צוות\s+/g, '')}</option>)}
+                    </TextField>
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 3 }}><Button onClick={() => setEditDialogOpen(false)}>ביטול</Button><Button onClick={handleEditSave} variant="contained" sx={{ px: 4 }}>שמור שינויים</Button></DialogActions>
             </Dialog>

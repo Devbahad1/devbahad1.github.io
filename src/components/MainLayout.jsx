@@ -17,7 +17,7 @@ import {
     Lightbulb,
     Notebook,
     Settings,
-    LogOut, // האייקון של ההתנתקות
+    LogOut,
     UserCheck,
     Menu as MenuIcon,
     ChevronRight,
@@ -93,11 +93,10 @@ export default function MainLayout() {
         fetchUser();
     }, [navigate]);
 
-    // --- פונקציית ההתנתקות ---
     const handleSignOut = async () => {
         try {
             await supabase.auth.signOut();
-            navigate('/login'); // מעבר לעמוד התחברות
+            navigate('/login');
         } catch (error) {
             console.error('Error signing out:', error);
         }
@@ -124,24 +123,40 @@ export default function MainLayout() {
         </Box>
     );
 
-    const isAdmin = user?.roles?.includes('מנהל') ||  user?.roles?.includes('סגל') ;
+    // בדיקת תפקידים
+    const isAdmin = user?.roles?.includes('מנהל');
+    const isStaff = user?.roles?.includes('סגל');
+    const isBattalionCommander = user?.roles?.includes('קה״ד גדודי');
+    
     const drawerWidth = 280;
 
-    const classroomFeatures = [
-        { title: 'ניהול כיתות', icon: Lightbulb, path: '/Dashboard', color: '#6366f1' },
-        { title: 'הקצאת מפתחות', icon: Key, path: '/AllocateKeys', color: '#10b981' },
-        { title: 'ניהול מפתחות', icon: Key, path: '/ManageKeys', color: '#f59e0b' },
-        { title: 'בקשות מפתחות', icon: FileText, path: '/KeyRequests', color: '#8b5cf6' },
-        { title: 'שליחת בקשת מפתח', icon: Send, path: '/Submitkeyrequest', color: '#06b6d4' },
-        { title: 'לו"ז', icon: Notebook, path: '/Schedule', color: '#ef4444' },
-
+    // הגדרת כל התכונות עם דרישות הרשאה
+    const allClassroomFeatures = [
+        { title: 'ניהול כיתות', icon: Lightbulb, path: '/Dashboard', color: '#6366f1', requiredRoles: [] }, // כולם
+        { title: 'הקצאת מפתחות', icon: Key, path: '/AllocateKeys', color: '#10b981', requiredRoles: [] }, // כולם
+        { title: 'ניהול מפתחות', icon: Key, path: '/ManageKeys', color: '#f59e0b', requiredRoles: [] }, // כולם
+        { title: 'בקשות מפתחות', icon: FileText, path: '/KeyRequests', color: '#8b5cf6', requiredRoles: ['מנהל', 'קה״ד גדודי'] },
+        { title: 'שליחת בקשת מפתח', icon: Send, path: '/Submitkeyrequest', color: '#06b6d4', requiredRoles: ['מנהל', 'קה״ד גדודי'] },
+        { title: 'לו"ז', icon: Notebook, path: '/Schedule', color: '#ef4444', requiredRoles: [] }, // כולם
     ];
 
-    const adminFeatures = [
-        { title: 'ניהול בקשות', icon: UserCheck, path: '/MangeRequests', color: '#6366f1' },
-        { title: 'ניהול הרשאות', icon: Settings, path: '/ManagePermissions', color: '#8b5cf6' },
-        { title: 'ניהול היררכיה', icon: Settings, path: '/ManageHierarchy', color: '#8b5cf6' },
+    const allAdminFeatures = [
+        { title: 'ניהול בקשות', icon: UserCheck, path: '/MangeRequests', color: '#6366f1', requiredRoles: ['מנהל', 'סגל'] },
+        { title: 'ניהול הרשאות', icon: Settings, path: '/ManagePermissions', color: '#8b5cf6', requiredRoles: ['מנהל', 'סגל'] },
+        { title: 'ניהול היררכיה', icon: Settings, path: '/ManageHierarchy', color: '#8b5cf6', requiredRoles: ['מנהל', 'סגל'] },
     ];
+
+    // פונקציה לבדיקה אם למשתמש יש הרשאה לפיצ'ר
+    const hasAccessToFeature = (feature) => {
+        if (!feature.requiredRoles || feature.requiredRoles.length === 0) {
+            return true; // אין דרישות הרשאה - כולם יכולים
+        }
+        return feature.requiredRoles.some(role => user?.roles?.includes(role));
+    };
+
+    // סינון התכונות לפי הרשאות
+    const classroomFeatures = allClassroomFeatures.filter(hasAccessToFeature);
+    const adminFeatures = allAdminFeatures.filter(hasAccessToFeature);
 
     return (
         <Box
@@ -229,39 +244,43 @@ export default function MainLayout() {
                         </ListItemButton>
                     </ListItem>
 
-                    <Typography
-                        variant="overline"
-                        sx={{
-                            px: 2, py: 1, display: 'block',
-                            color: isDark ? 'rgba(255, 255, 255, 0.5)' : '#64748b',
-                            fontWeight: 600, fontSize: '0.75rem', textAlign: 'right'
-                        }}
-                    >
-                        ניהול כיתות
-                    </Typography>
-
-                    {classroomFeatures.map((feature) => (
-                        <ListItem key={feature.title} disablePadding sx={{ mb: 1 }}>
-                            <ListItemButton
-                                component={Link}
-                                to={feature.path}
+                    {classroomFeatures.length > 0 && (
+                        <>
+                            <Typography
+                                variant="overline"
                                 sx={{
-                                    borderRadius: '12px',
-                                    '&:hover': { bgcolor: isDark ? `${feature.color}20` : `${feature.color}10` }
+                                    px: 2, py: 1, display: 'block',
+                                    color: isDark ? 'rgba(255, 255, 255, 0.5)' : '#64748b',
+                                    fontWeight: 600, fontSize: '0.75rem', textAlign: 'right'
                                 }}
                             >
-                                <ListItemIcon sx={{ minWidth: 40 }}>
-                                    <feature.icon size={20} style={{ color: feature.color }} />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={feature.title}
-                                    sx={{ '& .MuiTypography-root': { color: isDark ? 'white' : '#1e293b', fontWeight: 500, textAlign: 'right' } }}
-                                />
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
+                                ניהול כיתות
+                            </Typography>
 
-                    {isAdmin && (
+                            {classroomFeatures.map((feature) => (
+                                <ListItem key={feature.title} disablePadding sx={{ mb: 1 }}>
+                                    <ListItemButton
+                                        component={Link}
+                                        to={feature.path}
+                                        sx={{
+                                            borderRadius: '12px',
+                                            '&:hover': { bgcolor: isDark ? `${feature.color}20` : `${feature.color}10` }
+                                        }}
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 40 }}>
+                                            <feature.icon size={20} style={{ color: feature.color }} />
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={feature.title}
+                                            sx={{ '& .MuiTypography-root': { color: isDark ? 'white' : '#1e293b', fontWeight: 500, textAlign: 'right' } }}
+                                        />
+                                    </ListItemButton>
+                                </ListItem>
+                            ))}
+                        </>
+                    )}
+
+                    {adminFeatures.length > 0 && (
                         <>
                             <Divider sx={{ my: 2, borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0' }} />
                             <Typography
@@ -344,7 +363,6 @@ export default function MainLayout() {
                                 </svg>
                             )}
                         </Box>
-                        {/* כפתור יציאה בתפריט */}
                         <Box
                             onClick={handleSignOut}
                             sx={{
@@ -438,7 +456,6 @@ export default function MainLayout() {
                                 )}
                             </Box>
 
-                             {/* כפתור יציאה נוסף בסרגל העליון (אופציונלי אך נוח) */}
                              <Box
                                 onClick={handleSignOut}
                                 sx={{
