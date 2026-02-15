@@ -1,5 +1,5 @@
-// import { Route, BrowserRouter, HashRouter as Router, Routes, Navigate } from 'react-router';
 import { Route, BrowserRouter, HashRouter, Routes, Navigate } from 'react-router';
+// import { Route, BrowserRouter, HashRouter, Routes, Navigate } from "react-router-dom";
 
 import LoginPage from './pages/LoginPage/LoginPage';
 import LogoutPage from './pages/LogoutPage/LogoutPage';
@@ -18,7 +18,7 @@ import { supabase } from 'lib/supabaseClient'
 import AdminRequests from './pages/AdminRequestsPage/AdminRequestsPage';
 import ManagePermissions from 'pages/ManagePermissionsPage/ManagePermissionsPage';
 import ManageHierarchyPage from 'pages/ManageHierarchyPage/ManageHierarchyPage';
-
+import AuthCallback from 'pages/AuthCallbackPage/AuthCallback';
 const Router = process.env.NODE_ENV === 'production' ? HashRouter : BrowserRouter;
 
 
@@ -33,7 +33,6 @@ function AdminRoute({ children }) {
                 const { data: { session } } = await supabase.auth.getSession();
 
                 if (!session) {
-                    console.log('[AdminRoute] No session');
                     setLoading(false);
                     return;
                 }
@@ -52,14 +51,12 @@ function AdminRoute({ children }) {
                     return;
                 }
 
-                console.log('[AdminRoute] Roles found:', userRolesData);
 
                 // בדיקה אם אחד מה-roles הוא admin (תומך בכמה roles למשתמש)
                 const isAdminUser = userRolesData?.some(
                     ur => ur.roles?.name === 'מנהל'
                 );
 
-                console.log('[AdminRoute] Is admin:', isAdminUser);
                 setIsAdmin(isAdminUser);
 
             } catch (error) {
@@ -126,12 +123,11 @@ function authenticatedRoute(session, loading, component) {
 export default () => {
     const { session, loading } = useSession();
 
-    // useEffect(() => {
-    //     document.title = 'Migdalor';
-    // }, []);
+
 
     return (
-        <Router basename="/Migdalor_web">
+        <Router>
+            {/* <Router basename="/"> */}
             <Routes>
                 <Route element={<MainLayout />}>
                     <Route path="/Home" element={authenticatedRoute(session, loading, <HomePage />)} />
@@ -145,16 +141,13 @@ export default () => {
                     <Route path="/ManagePermissions" element={authenticatedRoute(session, loading, <ManagePermissions />)} />
                     <Route path="/ManageHierarchy" element={authenticatedRoute(session, loading, <ManageHierarchyPage />)} />
                     <Route path='/MangeRequests' element={authenticatedRoute(session, loading, <AdminRequests />)} />
-                    {/* <Route path="/admin" element={
-                        <AdminRoute>
-                            <AdminRequests />
-                        </AdminRoute>
-                    } /> */}
+
                 </Route>
                 <Route path="/" element={<Navigate to="/Login" replace />} />
                 <Route path="/Login" element={<LoginPage />} />
                 <Route path="/onboarding" element={authenticatedRoute(session, loading, <OnboardingPage />)} />
                 <Route path="/waiting-approval" element={authenticatedRoute(session, loading, <WaitingApprovalPage />)} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
 
 
             </Routes>

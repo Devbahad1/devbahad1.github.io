@@ -420,19 +420,12 @@ const processDistribution = async (pendingList) => {
   const assignedKeyIds = new Set(existingAssignments?.map(a => a.key_id) || []);
   const availableKeys = allKeys.filter(k => !assignedKeyIds.has(k.id));
 
-  console.log('Total keys:', allKeys.length);
-  console.log('Assigned keys this week:', assignedKeyIds.size);
-  console.log('Available keys:', availableKeys.length);
 
   let smallKeys = availableKeys.filter(k => k.room_type_id === 1);
   let dotzKeys = availableKeys.filter(k => k.room_type_id === 3);
   let largeKeys = availableKeys.filter(k => k.room_type_id === 2);
 
-  console.log('Available by type:', {
-    small: smallKeys.length,
-    dotz: dotzKeys.length,
-    large: largeKeys.length
-  });
+
 
   const requestUpdates = [];
 
@@ -441,13 +434,11 @@ const processDistribution = async (pendingList) => {
     const needsDotz = req.two_team_amount || 0;
     const needsLarge = req.company_amount || 0;
 
-    console.log(`Request ${req.id} needs:`, { small: needsSmall, dotz: needsDotz, large: needsLarge });
 
     let assignedSmall = 0, assignedLarge = 0, assignedDotz = 0;
 
     for (let i = 0; i < needsSmall && smallKeys.length > 0; i++) {
       const key = smallKeys.shift();
-      console.log('Assigning small key:', key.id);
       const { error } = await supabase
         .from('key_assignments')
         .insert({ 
@@ -466,7 +457,6 @@ const processDistribution = async (pendingList) => {
 
     for (let i = 0; i < needsDotz && dotzKeys.length > 0; i++) {
       const key = dotzKeys.shift();
-      console.log('Assigning dotz key:', key.id);
       const { error } = await supabase
         .from('key_assignments')
         .insert({ 
@@ -485,7 +475,6 @@ const processDistribution = async (pendingList) => {
 
     for (let i = 0; i < needsLarge && largeKeys.length > 0; i++) {
       const key = largeKeys.shift();
-      console.log('Assigning large key:', key.id);
       const { error } = await supabase
         .from('key_assignments')
         .insert({ 
@@ -502,7 +491,6 @@ const processDistribution = async (pendingList) => {
       }
     }
 
-    console.log(`Assigned to request ${req.id}:`, { small: assignedSmall, dotz: assignedDotz, large: assignedLarge });
 
     requestUpdates.push({
       id: req.id,
@@ -520,7 +508,6 @@ const processDistribution = async (pendingList) => {
 
   const totalAssigned = requestUpdates.reduce((sum, r) => sum + r.assigned_small_rooms + r.assigned_dotz_rooms + r.assigned_large_rooms, 0);
   
-  console.log('Total assigned:', totalAssigned);
 
   setNotification({ 
     open: true, 

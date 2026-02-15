@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useOutletContext } from 'react-router';
 import { supabase } from '../../lib/supabaseClient';
 import { BAHAD_GROUP_KEY_ID } from 'lib/consts';
+import { ro } from 'date-fns/locale';
 
 const ROOM_TYPE_THEMES = {
     'צוותי': { color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
@@ -53,8 +54,8 @@ const KeysManager = () => {
 
     const THEME_COLOR = '#10b981';
 
-    const isAdmin = user?.roles?.some(role => ['מנהל'].includes(role));
-    
+    const isAdmin = user?.roles?.some(role => ['מנהל'].includes(role)) || user?.roles?.some(role => ['קה״ד בה״די'].includes(role));
+
     // בדיקה אם המשתמש הוא קה"ד בה"די או מנהל
     const isKahadBahadi = user?.group_id === KAHAD_BAHADI_GROUP_ID;
     const canManageAll = isAdmin || isKahadBahadi;

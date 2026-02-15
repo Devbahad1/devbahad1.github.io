@@ -54,7 +54,6 @@ export default function OnboardingPage() {
                     navigate('/login');
                     return;
                 }
-                console.log('Authenticated user:', user);
                 // בדיקה אם המשתמש כבר שלח בקשה
                 const { data: userData } = await supabase
                     .from('users')
@@ -125,7 +124,6 @@ export default function OnboardingPage() {
                     filter: `id=eq.${user.id}`
                 },
                 (payload) => {
-                    console.log('Status changed:', payload);
                     const newStatus = payload.new.status;
 
                     if (newStatus === 'approved') {

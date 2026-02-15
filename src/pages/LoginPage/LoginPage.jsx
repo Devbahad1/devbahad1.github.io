@@ -11,9 +11,9 @@ export default function LoginPage() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        navigate('/home');
-      } 
-      if (event === 'SIGNED_OUT' && session) {
+        navigate('/Home');
+      }
+      if (event === 'SIGNED_OUT') {
         navigate('/login');
       }
     });
@@ -31,19 +31,19 @@ export default function LoginPage() {
       <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
         {isDark ? (
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
           </svg>
         ) : (
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
         )}
       </button>
@@ -54,7 +54,7 @@ export default function LoginPage() {
         <div className="orb orb-2"></div>
         <div className="orb orb-3"></div>
       </div>
-      
+
       {/* Noise texture overlay */}
       <div className="noise-overlay"></div>
 
@@ -66,7 +66,7 @@ export default function LoginPage() {
             <div className="login-card">
               <div className="card-header">
                 <div className="logo-container">
-                  <img 
+                  <img
                     src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/693b00a201212578d09f8396/2f970d938_9.png"
                     alt="לוגו מגדלור"
                     className="logo-image"
@@ -185,8 +185,8 @@ export default function LoginPage() {
                       label: 'auth-label',
                     }
                   }}
-                  providers={["google"]}
-                  redirectTo={`${window.location.origin}/auth/v1/callback`}
+                  providers={["supbase"]}
+                  redirectTo={`${window.location.origin}/#/auth/callback`}
                 />
               </div>
 

@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/Migdalor_web/static/js/main.85c0e972.js",
-    "index.html": "/Migdalor_web/index.html",
-    "main.85c0e972.js.map": "/Migdalor_web/static/js/main.85c0e972.js.map"
+    "main.js": "/static/js/main.5ff584bc.js",
+    "index.html": "/index.html",
+    "main.5ff584bc.js.map": "/static/js/main.5ff584bc.js.map"
   },
   "entrypoints": [
-    "static/js/main.85c0e972.js"
+    "static/js/main.5ff584bc.js"
   ]
 }

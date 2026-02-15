@@ -144,7 +144,6 @@ export default function ManagePermissionsPage() {
         try {
             // Get current authenticated user from Supabase Auth
             const { data: { user: authUser } } = await supabase.auth.getUser();
-            console.log('[PERMISSIONS] Auth user:', authUser);
             
             // Fetch users with group_id
             const { data: usersData, error: usersError } = await supabase
@@ -242,11 +241,9 @@ export default function ManagePermissionsPage() {
             setUserRolesMap(rolesMap);
 
             // Find current user's hierarchy using auth user email
-            console.log('[PERMISSIONS] Looking for user with email:', authUser?.email);
             
             const currentUserData = usersWithHierarchy.find(u => u.email === authUser?.email);
             
-            console.log('[PERMISSIONS] Current user data found:', currentUserData);
             if (currentUserData) {
                 const hierarchy = {
                     battalion_id: currentUserData.battalion_id,
@@ -256,10 +253,8 @@ export default function ManagePermissionsPage() {
                     team_id: currentUserData.team_id,
                     team_name: currentUserData.team_name
                 };
-                console.log('[PERMISSIONS] Setting hierarchy:', hierarchy);
                 setCurrentUserHierarchy(hierarchy);
             } else {
-                console.log('[PERMISSIONS] User not found in users list');
             }
 
             setStats({
@@ -363,12 +358,9 @@ export default function ManagePermissionsPage() {
             return;
         }
 
-        console.log('[SAVE ROLE] Saving role:', roleForm);
-        console.log('[SAVE ROLE] Editing existing?', !!editingRole);
 
         try {
             if (editingRole) {
-                console.log('[SAVE ROLE] Updating role ID:', editingRole.id);
                 const { data, error } = await supabase
                     .from('roles')
                     .update({
@@ -379,11 +371,9 @@ export default function ManagePermissionsPage() {
                     })
                     .eq('id', editingRole.id);
 
-                console.log('[SAVE ROLE] Update result:', { data, error });
                 if (error) throw error;
                 setSnackbar({ open: true, message: 'התפקיד עודכן בהצלחה', severity: 'success' });
             } else {
-                console.log('[SAVE ROLE] Creating new role');
                 const { data, error } = await supabase
                     .from('roles')
                     .insert({
@@ -393,7 +383,6 @@ export default function ManagePermissionsPage() {
                         week: roleForm.week
                     });
 
-                console.log('[SAVE ROLE] Insert result:', { data, error });
                 if (error) throw error;
                 setSnackbar({ open: true, message: 'התפקיד נוצר בהצלחה', severity: 'success' });
             }
@@ -460,7 +449,6 @@ export default function ManagePermissionsPage() {
         // If user is admin and viewMode is 'myGroup', filter by group
         if (!isAdmin || viewMode === 'myGroup') {
             if (currentUserHierarchy) {
-                console.log('[FILTER] Checking user:', u.full_name, 'team_id:', u.team_id, 'vs my team_id:', currentUserHierarchy.team_id);
                 
                 // Filter by same team first (most specific)
                 if (currentUserHierarchy.team_id) {

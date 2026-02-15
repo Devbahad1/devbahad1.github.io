@@ -71,7 +71,7 @@ export default function WaitingApprovalPage() {
 
         const checkApprovalStatus = async () => {
             try {
-                console.log('🔍 Checking approval status from database...');
+                // console.log('🔍 Checking approval status from database...');
                 const { data: userData } = await supabase
                     .from('users')
                     .select('status')
@@ -79,29 +79,27 @@ export default function WaitingApprovalPage() {
                     .single();
 
                 if (userData) {
-                    console.log('📊 Current status:', userData.status);
+                    // console.log('📊 Current status:', userData.status);
                     
                     if (userData.status === 'approved') {
-                        console.log('✅ User approved! Redirecting to home...');
+                        // console.log('✅ User approved! Redirecting to home...');
                         navigate('/home');
                     } else if (userData.status === 'rejected') {
-                        console.log('❌ User rejected! Redirecting...');
+                        // console.log('❌ User rejected! Redirecting...');
                         navigate('/rejected');
                     }
                 }
             } catch (error) {
-                console.error('❌ Error checking approval status:', error);
+                // console.error('❌ Error checking approval status:', error);
             }
         };
 
         // בדיקה כל 10 שניות
         const intervalId = setInterval(checkApprovalStatus, 10000);
 
-        console.log('🚀 Polling started - checking database every 10 seconds');
 
         // ניקוי ה-interval כשהקומפוננטה מתפרקת
         return () => {
-            console.log('🛑 Polling stopped');
             clearInterval(intervalId);
         };
     }, [user, navigate]);

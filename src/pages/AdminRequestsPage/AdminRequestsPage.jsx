@@ -85,7 +85,6 @@ export default function AdminRequests() {
 
     useEffect(() => {
         if (user) {
-            console.log('User roles:', user.roles);
         }
         if (!user) return;
         if (!hasAccess) {

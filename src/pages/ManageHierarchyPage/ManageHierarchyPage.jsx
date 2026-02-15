@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from 'lib/supabaseClient';
-import { 
-    Box, Container, Typography, IconButton, Button, 
-    Dialog, DialogTitle, DialogContent, TextField, 
+import {
+    Box, Container, Typography, IconButton, Button,
+    Dialog, DialogTitle, DialogContent, TextField,
     Collapse, List, Paper, Tooltip, CircularProgress,
     Alert, Snackbar
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    Plus, Trash2, ChevronRight, ChevronDown, 
-    Home, Users, Flag, Target, GitBranch 
+import {
+    Plus, Trash2, ChevronRight, ChevronDown,
+    Home, Users, Flag, Target, GitBranch
 } from 'lucide-react';
 import { useOutletContext } from 'react-router';
 
@@ -21,15 +21,15 @@ export default function ManageHierarchyPage() {
     const [nodes, setNodes] = useState([]);
     const [expanded, setExpanded] = useState({});
     const [loading, setLoading] = useState(true);
-    
+
     // Dialog States
     const [dialogOpen, setDialogOpen] = useState(false);
     const [newNodeData, setNewNodeData] = useState({ name: '', parent_id: null, group_type_id: 1 });
-    
+
     // Delete Confirmation States
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [nodeToDelete, setNodeToDelete] = useState(null);
-    
+
     // Feedback States
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
@@ -45,7 +45,7 @@ export default function ManageHierarchyPage() {
                 .select('*')
                 .order('group_type_id', { ascending: true })
                 .order('name', { ascending: true });
-            
+
             if (error) throw error;
             setNodes(data || []);
         } catch (error) {
@@ -54,6 +54,7 @@ export default function ManageHierarchyPage() {
             setLoading(false);
         }
     };
+    const [relatedLessonsCount, setRelatedLessonsCount] = useState(0);
 
     const showSnackbar = (message, severity = 'success') => {
         setSnackbar({ open: true, message, severity });
@@ -88,16 +89,39 @@ export default function ManageHierarchyPage() {
             showSnackbar('שגיאה בהוספת יחידה: ' + error.message, 'error');
         }
     };
+    const getAllDescendants = (nodeId) => {
+        const descendants = [];
+        const directChildren = nodes.filter(n => n.parent_id === nodeId);
 
+        directChildren.forEach(child => {
+            descendants.push(child);
+            descendants.push(...getAllDescendants(child.id));
+        });
+
+        return descendants;
+    };
     // פונקציה לבדיקת היתכנות מחיקה ופתיחת הדיאלוג
-    const openDeleteConfirm = (node) => {
-        const hasChildren = nodes.some(n => n.parent_id === node.id);
-        if (hasChildren) {
-            showSnackbar(`לא ניתן למחוק את "${node.name}" כשיש תחתיו תת-יחידות`, 'error');
-            return;
+    const openDeleteConfirm = async (node) => {
+        // מצא את כל הצאצאים
+        const allDescendants = getAllDescendants(node.id);
+        const allIds = [node.id, ...allDescendants.map(d => d.id)];
+
+        // ספור כמה שיעורים קשורים לכל העץ
+        try {
+            const { count, error } = await supabase
+                .from('schedule_lessons')
+                .select('*', { count: 'exact', head: true })
+                .in('team_id', allIds);
+
+            if (error) throw error;
+
+            setRelatedLessonsCount(count || 0);
+            setNodeToDelete(node);
+            setDeleteDialogOpen(true);
+
+        } catch (error) {
+            showSnackbar('שגיאה בטעינת נתונים: ' + error.message, 'error');
         }
-        setNodeToDelete(node);
-        setDeleteDialogOpen(true);
     };
 
     // ביצוע המחיקה בפועל
@@ -107,7 +131,7 @@ export default function ManageHierarchyPage() {
         try {
             const { error } = await supabase.from('group_node').delete().eq('id', nodeToDelete.id);
             if (error) throw error;
-            
+
             showSnackbar(`היחידה "${nodeToDelete.name}" נמחקה בהצלחה`);
             fetchData();
         } catch (error) {
@@ -115,6 +139,7 @@ export default function ManageHierarchyPage() {
         } finally {
             setDeleteDialogOpen(false);
             setNodeToDelete(null);
+            setRelatedLessonsCount(0);
         }
     };
 
@@ -145,14 +170,14 @@ export default function ManageHierarchyPage() {
                                         '&:hover': { borderColor: '#6366f1', bgcolor: isDark ? 'rgba(99,102,241,0.05)' : 'rgba(99,102,241,0.02)' }
                                     }}
                                 >
-                                    <Box 
-                                        sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, cursor: 'pointer' }} 
+                                    <Box
+                                        sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, cursor: 'pointer' }}
                                         onClick={() => toggleExpand(node.id)}
                                     >
                                         <IconButton size="small" sx={{ color: '#6366f1', visibility: hasChildren ? 'visible' : 'hidden' }}>
                                             {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                         </IconButton>
-                                        
+
                                         {node.group_type_id === 1 && <Home size={22} color="#6366f1" />}
                                         {node.group_type_id === 2 && <Target size={22} color="#10b981" />}
                                         {node.group_type_id === 3 && <Flag size={22} color="#f59e0b" />}
@@ -227,17 +252,17 @@ export default function ManageHierarchyPage() {
             <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs" dir="rtl">
                 <DialogTitle sx={{ fontWeight: 800 }}>הוספת יחידה חדשה</DialogTitle>
                 <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <TextField 
-                        label="שם היחידה" 
-                        fullWidth 
+                    <TextField
+                        label="שם היחידה"
+                        fullWidth
                         autoFocus
                         value={newNodeData.name}
-                        onChange={(e) => setNewNodeData({...newNodeData, name: e.target.value})}
+                        onChange={(e) => setNewNodeData({ ...newNodeData, name: e.target.value })}
                         sx={{ mt: 1 }}
                     />
-                    <Button 
-                        variant="contained" 
-                        fullWidth 
+                    <Button
+                        variant="contained"
+                        fullWidth
                         size="large"
                         sx={{ borderRadius: '12px', py: 1.5, fontWeight: 700 }}
                         onClick={handleSaveNode}
@@ -248,8 +273,8 @@ export default function ManageHierarchyPage() {
             </Dialog>
 
             {/* דיאלוג אישור מחיקה מעוצב */}
-            <Dialog 
-                open={deleteDialogOpen} 
+            <Dialog
+                open={deleteDialogOpen}
                 onClose={() => setDeleteDialogOpen(false)}
                 PaperProps={{
                     sx: { borderRadius: '20px', p: 1 }
@@ -257,38 +282,83 @@ export default function ManageHierarchyPage() {
                 dir="rtl"
             >
                 <DialogTitle sx={{ fontWeight: 800, textAlign: 'center' }}>
-                    אישור מחיקה
+                    ⚠️ אישור מחיקה
                 </DialogTitle>
                 <DialogContent>
-                    <Typography textAlign="center" sx={{ color: isDark ? '#f8fafc' : '#1e293b' }}>
+                    <Typography textAlign="center" sx={{ color: isDark ? '#f8fafc' : '#1e293b', mb: 2 }}>
                         האם אתה בטוח שברצונך למחוק את <strong>{nodeToDelete?.name}</strong>?
-                        <br />
+                    </Typography>
+
+                    {(() => {
+                        const descendants = nodeToDelete ? getAllDescendants(nodeToDelete.id) : [];
+                        return descendants.length > 0 && (
+                            <Alert severity="error" sx={{ mb: 2 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+                                    🔴 מחיקה קסקדית - תימחקנה גם {descendants.length} תת-יחידות:
+                                </Typography>
+                                <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                                    {descendants.map(d => (
+                                        <li key={d.id}>
+                                            <Typography variant="body2">{d.name}</Typography>
+                                        </li>
+                                    ))}
+                                </Box>
+                            </Alert>
+                        );
+                    })()}
+
+                    {relatedLessonsCount > 0 && (
+                        <Alert severity="warning" sx={{ mb: 2 }}>
+                            <strong>⚠️ שים לב:</strong> בנוסף תימחקנה{' '}
+                            <strong>{relatedLessonsCount} שיעורים</strong> הקשורים ליחידות אלו!
+                        </Alert>
+                    )}
+
+                    <Typography
+                        variant="body2"
+                        textAlign="center"
+                        sx={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}
+                    >
                         פעולה זו אינה ניתנת לביטול.
                     </Typography>
                 </DialogContent>
                 <Box sx={{ display: 'flex', gap: 2, p: 2, justifyContent: 'center' }}>
-                    <Button 
-                        onClick={() => setDeleteDialogOpen(false)}
+                    <Button
+                        onClick={() => {
+                            setDeleteDialogOpen(false);
+                            setNodeToDelete(null);
+                            setRelatedLessonsCount(0);
+                        }}
                         variant="outlined"
-                        sx={{ borderRadius: '12px', flex: 1, color: isDark ? 'white' : 'inherit', borderColor: isDark ? 'rgba(255,255,255,0.3)' : 'inherit' }}
+                        sx={{
+                            borderRadius: '12px',
+                            flex: 1,
+                            color: isDark ? 'white' : 'inherit',
+                            borderColor: isDark ? 'rgba(255,255,255,0.3)' : 'inherit'
+                        }}
                     >
                         ביטול
                     </Button>
-                    <Button 
+                    <Button
                         onClick={handleDeleteNode}
-                        variant="contained" 
+                        variant="contained"
                         color="error"
                         sx={{ borderRadius: '12px', flex: 1, fontWeight: 700 }}
                     >
-                        מחק יחידה
+                        {(() => {
+                            const descendants = nodeToDelete ? getAllDescendants(nodeToDelete.id) : [];
+                            const totalUnits = 1 + descendants.length;
+                            return totalUnits > 1
+                                ? `מחק ${totalUnits} יחידות`
+                                : 'מחק יחידה';
+                        })()}
                     </Button>
                 </Box>
             </Dialog>
-
             {/* Snackbar להודעות שגיאה והצלחה */}
-            <Snackbar 
-                open={snackbar.open} 
-                autoHideDuration={4000} 
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
                 onClose={() => setSnackbar({ ...snackbar, open: false })}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
