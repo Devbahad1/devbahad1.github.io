@@ -1,6 +1,4 @@
 import { Route, BrowserRouter, HashRouter, Routes, Navigate } from 'react-router';
-// import { Route, BrowserRouter, HashRouter, Routes, Navigate } from "react-router-dom";
-
 import LoginPage from './pages/LoginPage/LoginPage';
 import LogoutPage from './pages/LogoutPage/LogoutPage';
 import HomePage from './pages/HomePage/HomePage';
@@ -127,7 +125,6 @@ export default () => {
 
     return (
         <Router>
-            {/* <Router basename="/"> */}
             <Routes>
                 <Route element={<MainLayout />}>
                     <Route path="/Home" element={authenticatedRoute(session, loading, <HomePage />)} />
