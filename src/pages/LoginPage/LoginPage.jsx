@@ -87,7 +87,7 @@ export default function LoginPage() {
                         password_input_placeholder: 'הכנס את הסיסמה שלך',
                         button_label: 'התחבר',
                         loading_button_label: 'מתחבר...',
-                        social_provider_text: 'התחבר עם {{provider}}',
+                        // social_provider_text: 'התחבר עם {{provider}}',
                         link_text: 'כבר יש לך חשבון? התחבר',
                       },
                       sign_up: {
@@ -97,7 +97,7 @@ export default function LoginPage() {
                         password_input_placeholder: 'הכנס את הסיסמה שלך',
                         button_label: 'הרשם',
                         loading_button_label: 'נרשם...',
-                        social_provider_text: 'הרשם עם {{provider}}',
+                        // social_provider_text: 'הרשם עם {{provider}}',
                         link_text: 'אין לך חשבון? הרשם',
                         confirmation_text: 'בדוק את האימייל שלך לאישור',
                       },
@@ -185,7 +185,7 @@ export default function LoginPage() {
                       label: 'auth-label',
                     }
                   }}
-                  providers={["supbase"]}
+                  providers={[]}
                   redirectTo={`${window.location.origin}/#/auth/callback`}
                 />
               </div>

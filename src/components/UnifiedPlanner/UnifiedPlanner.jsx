@@ -92,7 +92,7 @@ export default function UnifiedPlanner() {
 
     return (
         <Box mt={5} dir="rtl">
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            {/* <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                 <Typography variant="h5" fontWeight={700}>
                     🗓️ יומן ומשימות
                 </Typography>
@@ -102,7 +102,7 @@ export default function UnifiedPlanner() {
                         חיבור ליומן Google
                     </Button>
                 )}
-            </Box>
+            </Box> */}
 
             <Grid container spacing={4}>
                 <Grid item xs={12} md={5}>
