@@ -7,7 +7,7 @@ import {
     Paper, Stack, Tooltip, Menu, Tabs, Tab
 } from '@mui/material';
 import {
-    Plus, Key, Trash2, Edit2, Monitor, X, 
+    Plus, Key, Trash2, Edit2, Monitor, X,
     Search, CheckCircle, User, RotateCcw, Filter, ChevronLeft, ChevronRight, Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -70,16 +70,20 @@ const KeysManager = () => {
         return current && current.group_type_id === 2 ? current : null;
     }, [user, groups]);
 
-    const battalions = useMemo(() => 
+    const battalions = useMemo(() =>
         groups.filter(g => g.group_type_id === 2).sort((a, b) => a.name.localeCompare(b.name)),
-    [groups]);
+        [groups]);
 
     // חישוב יום רביעי
     const getNextWednesday = (weeks) => {
         const d = new Date();
-        d.setDate(d.getDate() + (14 + (weeks * 7)));
-        d.setDate(d.getDate() + (3 - d.getDay() + 7) % 7 || 7);
-        return d;
+        // d.setDate(d.getDate() + (14 + (weeks * 7)));
+        // d.setDate(d.getDate() + (3 - d.getDay() + 7) % 7 || 7);
+        const dayOfWeek = d.getDay();
+    // מחשבים כמה ימים עברו מאז יום רביעי האחרון
+    const daysSinceWednesday = (dayOfWeek + 4) % 7;
+    d.setDate(d.getDate() - daysSinceWednesday + (weeks * 7));
+    return d;
     };
 
     useEffect(() => {
@@ -101,17 +105,17 @@ const KeysManager = () => {
             if (buildingsReq.data) setBuildings(buildingsReq.data);
             if (groupsReq.data) setGroups(groupsReq.data);
             if (roomTypesReq.data) setRoomTypes(roomTypesReq.data);
-        } catch (e) { 
-            console.error(e); 
-        } finally { 
-            setIsLoading(false); 
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
     // שליפת שיוכי מפתחות לשבוע הנבחר
     const fetchKeyAssignments = useCallback(async () => {
         if (!selectedWednesday) return;
-        
+
         try {
             const { data, error } = await supabase
                 .from('key_assignments')
@@ -158,10 +162,10 @@ const KeysManager = () => {
 
     const handleSaveKey = async () => {
         const payload = { ...formData };
-        const { error } = editingKey 
+        const { error } = editingKey
             ? await supabase.from('keysmanager_keys').update(payload).eq('id', editingKey.id)
             : await supabase.from('keysmanager_keys').insert([{ ...payload, assigned_group_id: BAHAD_GROUP_KEY_ID, status: 'available' }]);
-        
+
         if (!error) { fetchData(); setShowModal(false); }
     };
 
@@ -245,13 +249,13 @@ const KeysManager = () => {
     // יצירת מפה: key_id -> battalion_id מהשיוכים של השבוע
     const weekKeyAssignments = useMemo(() => {
         const assignments = {};
-        
+
         keyAssignments.forEach(assignment => {
             if (assignment.request?.requestee?.id) {
                 assignments[assignment.key_id] = assignment.request.requestee.id;
             }
         });
-        
+
         return assignments;
     }, [keyAssignments]);
 
@@ -287,10 +291,10 @@ const KeysManager = () => {
         return filteredKeysByTab.filter(k => {
             const matchesSearch = k.room_number.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesType = selectedTypeId ? k.room_type_id === selectedTypeId : true;
-            
+
             // השיוך בשבוע הנבחר מתוך key_assignments
             const assignedGroupIdInWeek = weekKeyAssignments[k.id];
-            
+
             let matchesStatus = true;
             if (statusFilterValue === 'available') {
                 matchesStatus = !assignedGroupIdInWeek;
@@ -334,9 +338,9 @@ const KeysManager = () => {
                     </Box>
                 </Box>
                 {canManageAll && (
-                    <Button 
-                        variant="contained" startIcon={<Plus size={20} />} 
-                        onClick={() => { setEditingKey(null); setFormData({room_number: '', room_type_id: '', has_computers: false, building_id: ''}); setShowModal(true); }}
+                    <Button
+                        variant="contained" startIcon={<Plus size={20} />}
+                        onClick={() => { setEditingKey(null); setFormData({ room_number: '', room_type_id: '', has_computers: false, building_id: '' }); setShowModal(true); }}
                         sx={{ bgcolor: '#10b981', borderRadius: '14px', px: 3, py: 1.2, fontWeight: 700, '&:hover': { bgcolor: '#059669' } }}
                     >
                         הוסף מפתח
@@ -347,10 +351,10 @@ const KeysManager = () => {
             {/* Tabs - רק למשתמשים רגילים */}
             {!canManageAll && (
                 <Box sx={{ mb: 3 }}>
-                    <Tabs 
-                        value={tabValue} 
+                    <Tabs
+                        value={tabValue}
                         onChange={(e, newValue) => setTabValue(newValue)}
-                        sx={{ 
+                        sx={{
                             '& .MuiTab-root': { fontWeight: 700, fontSize: '1rem' },
                             '& .Mui-selected': { color: THEME_COLOR }
                         }}
@@ -379,16 +383,16 @@ const KeysManager = () => {
                 </Paper>
                 <AnimatePresence>
                     {wednesdayOffset > 0 && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: -10 }} 
-                            animate={{ opacity: 1, y: 0 }} 
-                            exit={{ opacity: 0, y: -10 }} 
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
                             style={{ position: 'absolute', bottom: -35, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}
                         >
-                            <Button 
-                                size="small" 
-                                startIcon={<RotateCcw size={14} />} 
-                                onClick={() => setWednesdayOffset(0)} 
+                            <Button
+                                size="small"
+                                startIcon={<RotateCcw size={14} />}
+                                onClick={() => setWednesdayOffset(0)}
                                 sx={{ color: THEME_COLOR, fontWeight: 800, fontSize: '0.85rem' }}
                             >
                                 חזור לרביעי הנוכחי
@@ -398,13 +402,13 @@ const KeysManager = () => {
                 </AnimatePresence>
             </Box>
 
-        
+
 
             {/* Stats Cards */}
             <Box sx={{ display: 'flex', gap: 2, mb: 4, overflowX: 'auto', pb: 1 }}>
-                <Card 
+                <Card
                     onClick={() => setSelectedTypeId(null)}
-                    sx={{ 
+                    sx={{
                         flex: 1, minWidth: '140px', p: 2, cursor: 'pointer', borderRadius: '20px',
                         border: '2px solid', borderColor: !selectedTypeId ? '#10b981' : 'transparent',
                         bgcolor: isDark ? '#1e293b' : '#fff', transition: '0.2s',
@@ -415,9 +419,9 @@ const KeysManager = () => {
                     <Typography variant="h4" sx={{ fontWeight: 900 }}>{processedKeys.length}</Typography>
                 </Card>
                 {stats.map(type => (
-                    <Card 
+                    <Card
                         key={type.id} onClick={() => setSelectedTypeId(type.id === selectedTypeId ? null : type.id)}
-                        sx={{ 
+                        sx={{
                             flex: 1, minWidth: '140px', p: 2, cursor: 'pointer', borderRadius: '20px',
                             border: '2px solid', borderColor: selectedTypeId === type.id ? type.theme.color : 'transparent',
                             bgcolor: isDark ? `${type.theme.color}10` : type.theme.bg, transition: '0.2s',
@@ -435,7 +439,7 @@ const KeysManager = () => {
                 <TextField
                     size="small" placeholder="חיפוש לפי מספר חדר..."
                     value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                    InputProps={{ 
+                    InputProps={{
                         startAdornment: <InputAdornment position="start"><Search size={18} color="#94a3b8" /></InputAdornment>,
                         sx: { borderRadius: '14px', bgcolor: isDark ? '#1e293b' : '#fff' }
                     }}
@@ -485,7 +489,7 @@ const KeysManager = () => {
                         {processedKeys.map((key) => {
                             const typeName = roomTypes.find(t => t.id === key.room_type_id)?.name;
                             const theme = getTheme(typeName);
-                            
+
                             // השיוך בשבוע הנבחר מתוך key_assignments
                             const assignedGroupIdInWeek = weekKeyAssignments[key.id];
                             const assignedGroup = groups.find(g => g.id === assignedGroupIdInWeek);
@@ -499,7 +503,7 @@ const KeysManager = () => {
                                     </TableCell>
                                     <TableCell align="center">{buildings.find(b => b.id === key.building_id)?.name || '-'}</TableCell>
                                     <TableCell align="center">{key.has_computers ? <Monitor size={18} color="#3b82f6" /> : '-'}</TableCell>
-                                    
+
                                     <TableCell align="center">
                                         {canManageAll ? (
                                             // מנהל/קה"ד - יכול לשנות שיוך
@@ -507,9 +511,9 @@ const KeysManager = () => {
                                                 <Select
                                                     value={isFree ? 'available' : assignedGroupIdInWeek}
                                                     onChange={(e) => handleManualAssignment(key.id, e.target.value)}
-                                                    sx={{ 
-                                                        borderRadius: '10px', 
-                                                        fontWeight: 700, 
+                                                    sx={{
+                                                        borderRadius: '10px',
+                                                        fontWeight: 700,
                                                         height: 34,
                                                         bgcolor: isFree ? 'transparent' : '#fff7ed',
                                                         color: isFree ? 'inherit' : '#ea580c',
@@ -529,15 +533,15 @@ const KeysManager = () => {
                                             isFree ? (
                                                 <Chip label="פנוי" size="small" color="success" variant="outlined" sx={{ fontWeight: 700 }} />
                                             ) : (
-                                                <Chip 
-                                                    label={`גדוד ${assignedGroup?.name}`} 
-                                                    size="small" 
-                                                    sx={{ 
-                                                        bgcolor: '#fff7ed', 
-                                                        color: '#ea580c', 
-                                                        fontWeight: 700, 
-                                                        border: '1px solid #fed7aa' 
-                                                    }} 
+                                                <Chip
+                                                    label={`גדוד ${assignedGroup?.name}`}
+                                                    size="small"
+                                                    sx={{
+                                                        bgcolor: '#fff7ed',
+                                                        color: '#ea580c',
+                                                        fontWeight: 700,
+                                                        border: '1px solid #fed7aa'
+                                                    }}
                                                 />
                                             )
                                         )}
@@ -547,7 +551,7 @@ const KeysManager = () => {
                                         <TableCell align="center">
                                             <Stack direction="row" spacing={1} justifyContent="center">
                                                 <IconButton onClick={() => { setEditingKey(key); setFormData(key); setShowModal(true); }} size="small" color="primary"><Edit2 size={18} /></IconButton>
-                                                <IconButton size="small" color="error" onClick={() => { if(window.confirm('למחוק את המפתח מהמערכת?')) supabase.from('keysmanager_keys').delete().eq('id', key.id).then(() => fetchData()); }}><Trash2 size={18} /></IconButton>
+                                                <IconButton size="small" color="error" onClick={() => { if (window.confirm('למחוק את המפתח מהמערכת?')) supabase.from('keysmanager_keys').delete().eq('id', key.id).then(() => fetchData()); }}><Trash2 size={18} /></IconButton>
                                             </Stack>
                                         </TableCell>
                                     )}
@@ -560,7 +564,7 @@ const KeysManager = () => {
 
             {/* Modal: Add/Edit Key */}
             {canManageAll && (
-                <Dialog 
+                <Dialog
                     open={showModal} onClose={() => setShowModal(false)} dir="rtl" fullWidth maxWidth="xs"
                     PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}
                 >
@@ -577,12 +581,12 @@ const KeysManager = () => {
                         <Stack spacing={3} sx={{ mt: 2 }}>
                             <Box>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>מספר חדר *</Typography>
-                                <TextField fullWidth size="medium" placeholder="למשל, 101..." value={formData.room_number} onChange={e => setFormData({...formData, room_number: e.target.value})} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
+                                <TextField fullWidth size="medium" placeholder="למשל, 101..." value={formData.room_number} onChange={e => setFormData({ ...formData, room_number: e.target.value })} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
                             </Box>
                             <Box>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>סוג חדר *</Typography>
                                 <FormControl fullWidth>
-                                    <Select value={formData.room_type_id} onChange={e => setFormData({...formData, room_type_id: e.target.value})} sx={{ borderRadius: '12px' }} displayEmpty MenuProps={{ dir: 'rtl' }}>
+                                    <Select value={formData.room_type_id} onChange={e => setFormData({ ...formData, room_type_id: e.target.value })} sx={{ borderRadius: '12px' }} displayEmpty MenuProps={{ dir: 'rtl' }}>
                                         <MenuItem value="" disabled>בחר סוג חדר...</MenuItem>
                                         {roomTypes.map(t => <MenuItem key={t.id} value={t.id} sx={{ justifyContent: 'flex-start' }}>{t.name}</MenuItem>)}
                                     </Select>
@@ -591,16 +595,16 @@ const KeysManager = () => {
                             <Box>
                                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>אזור *</Typography>
                                 <FormControl fullWidth>
-                                    <Select value={formData.building_id} onChange={e => setFormData({...formData, building_id: e.target.value})} sx={{ borderRadius: '12px' }} displayEmpty MenuProps={{ dir: 'rtl' }}>
+                                    <Select value={formData.building_id} onChange={e => setFormData({ ...formData, building_id: e.target.value })} sx={{ borderRadius: '12px' }} displayEmpty MenuProps={{ dir: 'rtl' }}>
                                         <MenuItem value="" disabled>בחר אזור...</MenuItem>
                                         {buildings.map(b => <MenuItem key={b.id} value={b.id} sx={{ justifyContent: 'flex-start' }}>{b.name}</MenuItem>)}
                                     </Select>
                                 </FormControl>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-                                <FormControlLabel dir="ltr" sx={{ justifyContent: 'flex-end', mr: 0, '& .MuiTypography-root': { fontWeight: 700, fontSize: '0.9rem' } }} 
-                                    control={<Checkbox checked={formData.has_computers} onChange={e => setFormData({...formData, has_computers: e.target.checked})} sx={{ '&.Mui-checked': { color: '#10b981' } }} />} 
-                                    label="💻 יש מחשב בכיתה" labelPlacement="end" 
+                                <FormControlLabel dir="ltr" sx={{ justifyContent: 'flex-end', mr: 0, '& .MuiTypography-root': { fontWeight: 700, fontSize: '0.9rem' } }}
+                                    control={<Checkbox checked={formData.has_computers} onChange={e => setFormData({ ...formData, has_computers: e.target.checked })} sx={{ '&.Mui-checked': { color: '#10b981' } }} />}
+                                    label="💻 יש מחשב בכיתה" labelPlacement="end"
                                 />
                             </Box>
                         </Stack>
