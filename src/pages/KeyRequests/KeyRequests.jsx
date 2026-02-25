@@ -25,11 +25,11 @@ const ConfirmDialog = ({ open, title, message, onConfirm, onCancel, confirmText 
     </DialogContent>
     <DialogActions sx={{ p: 2, gap: 1 }}>
       <Button onClick={onCancel} sx={{ borderRadius: '12px', fontWeight: 700 }}>ביטול</Button>
-      <Button 
-        onClick={onConfirm} 
-        variant="contained" 
-        sx={{ 
-          borderRadius: '12px', fontWeight: 700, 
+      <Button
+        onClick={onConfirm}
+        variant="contained"
+        sx={{
+          borderRadius: '12px', fontWeight: 700,
           bgcolor: isDestructive ? '#ef4444' : '#10b981',
           '&:hover': { bgcolor: isDestructive ? '#dc2626' : '#059669' }
         }}
@@ -50,7 +50,7 @@ export default function KeyRequestsPage() {
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
   const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
-  
+
   // State לדיאלוג האישור
   const [confirmState, setConfirmState] = useState({ open: false, title: '', message: '', onConfirm: null, isDestructive: false });
 
@@ -94,9 +94,9 @@ export default function KeyRequestsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (hasAccess) {
-      fetchRequests(); 
+      fetchRequests();
     }
   }, [fetchRequests, hasAccess]);
 
@@ -106,10 +106,18 @@ export default function KeyRequestsPage() {
   }, [wednesdayOffset]);
 
   const getNextWednesday = (weeks) => {
-    const d = new Date();
-    d.setDate(d.getDate() + (14 + (weeks * 7)));
-    d.setDate(d.getDate() + (3 - d.getDay() + 7) % 7 || 7);
-    return d;
+    if (weeks >= 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + (14 + (weeks * 7)));
+      d.setDate(d.getDate() + (3 - d.getDay() + 7) % 7 || 7);
+      return d;
+    } else {
+      const d = new Date();
+      const day = d.getDay();
+      const daysUntilWednesday = (3 - day + 7) % 7 || 7;
+      d.setDate(d.getDate() + daysUntilWednesday + (weeks * 7));
+      return d;
+    }
   };
 
   const handleEditClick = (req) => {
@@ -123,7 +131,7 @@ export default function KeyRequestsPage() {
 
   const handleSaveEdit = async (id) => {
     const req = requests.find(r => r.id === id);
-    
+
     if (req.status === 'pending') {
       // אם הבקשה ממתינה - רק נעדכן את הכמויות
       const { error } = await supabase
@@ -142,175 +150,175 @@ export default function KeyRequestsPage() {
     }
   };
 
-const updateApprovedRequest = async (req) => {
-  setLoading(true);
-  try {
-    const targetGroupId = req.requestee.id;
+  const updateApprovedRequest = async (req) => {
+    setLoading(true);
+    try {
+      const targetGroupId = req.requestee.id;
 
-    // חישוב ההפרש
-    const oldSmall = req.single_team_amount;
-    const oldDotz = req.two_team_amount;
-    const oldLarge = req.company_amount;
+      // חישוב ההפרש
+      const oldSmall = req.single_team_amount;
+      const oldDotz = req.two_team_amount;
+      const oldLarge = req.company_amount;
 
-    const newSmall = editValues.single_team_amount;
-    const newDotz = editValues.two_team_amount;
-    const newLarge = editValues.company_amount;
+      const newSmall = editValues.single_team_amount;
+      const newDotz = editValues.two_team_amount;
+      const newLarge = editValues.company_amount;
 
-    const diffSmall = newSmall - oldSmall;
-    const diffDotz = newDotz - oldDotz;
-    const diffLarge = newLarge - oldLarge;
+      const diffSmall = newSmall - oldSmall;
+      const diffDotz = newDotz - oldDotz;
+      const diffLarge = newLarge - oldLarge;
 
-    // קבלת מפתחות זמינים (שלא משובצים לשבוע זה)
-    const { data: assignedThisWeek } = await supabase
-      .from('key_assignments')
-      .select('key_id')
-      .eq('assigned_at', selectedWednesday);
-    
-    const assignedKeyIds = new Set(assignedThisWeek?.map(a => a.key_id) || []);
+      // קבלת מפתחות זמינים (שלא משובצים לשבוע זה)
+      const { data: assignedThisWeek } = await supabase
+        .from('key_assignments')
+        .select('key_id')
+        .eq('assigned_at', selectedWednesday);
 
-    const { data: allKeys } = await supabase
-      .from('keysmanager_keys')
-      .select('*');
+      const assignedKeyIds = new Set(assignedThisWeek?.map(a => a.key_id) || []);
 
-    const availableKeys = allKeys?.filter(k => !assignedKeyIds.has(k.id)) || [];
-    
-    // קבלת המפתחות המשובצים לבקשה הזו בשבוע הזה
-    const { data: thisRequestAssignments } = await supabase
-      .from('key_assignments')
-      .select('key_id')
-      .eq('request_id', req.id)
-      .eq('assigned_at', selectedWednesday);
-    
-    const thisRequestKeyIds = new Set(thisRequestAssignments?.map(a => a.key_id) || []);
-    const assignedKeys = allKeys?.filter(k => thisRequestKeyIds.has(k.id)) || [];
+      const { data: allKeys } = await supabase
+        .from('keysmanager_keys')
+        .select('*');
 
-    let smallAvailable = availableKeys.filter(k => k.room_type_id === 1);
-    let dotzAvailable = availableKeys.filter(k => k.room_type_id === 3);
-    let largeAvailable = availableKeys.filter(k => k.room_type_id === 2);
+      const availableKeys = allKeys?.filter(k => !assignedKeyIds.has(k.id)) || [];
 
-    let smallAssigned = assignedKeys.filter(k => k.room_type_id === 1);
-    let dotzAssigned = assignedKeys.filter(k => k.room_type_id === 3);
-    let largeAssigned = assignedKeys.filter(k => k.room_type_id === 2);
+      // קבלת המפתחות המשובצים לבקשה הזו בשבוע הזה
+      const { data: thisRequestAssignments } = await supabase
+        .from('key_assignments')
+        .select('key_id')
+        .eq('request_id', req.id)
+        .eq('assigned_at', selectedWednesday);
 
-    let finalSmall = req.assigned_small_rooms;
-    let finalDotz = req.assigned_dotz_rooms;
-    let finalLarge = req.assigned_large_rooms;
+      const thisRequestKeyIds = new Set(thisRequestAssignments?.map(a => a.key_id) || []);
+      const assignedKeys = allKeys?.filter(k => thisRequestKeyIds.has(k.id)) || [];
 
-    // טיפול בחדרים צוותיים
-    if (diffSmall > 0) {
-      for (let i = 0; i < diffSmall && smallAvailable.length > 0; i++) {
-        const key = smallAvailable.shift();
-        await supabase
-          .from('key_assignments')
-          .insert({ 
-            key_id: key.id, 
-            request_id: req.id, 
-            assigned_at: selectedWednesday
-          });
-        finalSmall++;
+      let smallAvailable = availableKeys.filter(k => k.room_type_id === 1);
+      let dotzAvailable = availableKeys.filter(k => k.room_type_id === 3);
+      let largeAvailable = availableKeys.filter(k => k.room_type_id === 2);
+
+      let smallAssigned = assignedKeys.filter(k => k.room_type_id === 1);
+      let dotzAssigned = assignedKeys.filter(k => k.room_type_id === 3);
+      let largeAssigned = assignedKeys.filter(k => k.room_type_id === 2);
+
+      let finalSmall = req.assigned_small_rooms;
+      let finalDotz = req.assigned_dotz_rooms;
+      let finalLarge = req.assigned_large_rooms;
+
+      // טיפול בחדרים צוותיים
+      if (diffSmall > 0) {
+        for (let i = 0; i < diffSmall && smallAvailable.length > 0; i++) {
+          const key = smallAvailable.shift();
+          await supabase
+            .from('key_assignments')
+            .insert({
+              key_id: key.id,
+              request_id: req.id,
+              assigned_at: selectedWednesday
+            });
+          finalSmall++;
+        }
+      } else if (diffSmall < 0) {
+        const toReturn = Math.min(Math.abs(diffSmall), smallAssigned.length);
+        for (let i = 0; i < toReturn; i++) {
+          const key = smallAssigned.shift();
+          await supabase
+            .from('key_assignments')
+            .delete()
+            .eq('key_id', key.id)
+            .eq('request_id', req.id)
+            .eq('assigned_at', selectedWednesday);
+          finalSmall--;
+        }
       }
-    } else if (diffSmall < 0) {
-      const toReturn = Math.min(Math.abs(diffSmall), smallAssigned.length);
-      for (let i = 0; i < toReturn; i++) {
-        const key = smallAssigned.shift();
-        await supabase
-          .from('key_assignments')
-          .delete()
-          .eq('key_id', key.id)
-          .eq('request_id', req.id)
-          .eq('assigned_at', selectedWednesday);
-        finalSmall--;
+
+      // טיפול בחדרי דו"צ
+      if (diffDotz > 0) {
+        for (let i = 0; i < diffDotz && dotzAvailable.length > 0; i++) {
+          const key = dotzAvailable.shift();
+          await supabase
+            .from('key_assignments')
+            .insert({
+              key_id: key.id,
+              request_id: req.id,
+              assigned_at: selectedWednesday
+            });
+          finalDotz++;
+        }
+      } else if (diffDotz < 0) {
+        const toReturn = Math.min(Math.abs(diffDotz), dotzAssigned.length);
+        for (let i = 0; i < toReturn; i++) {
+          const key = dotzAssigned.shift();
+          await supabase
+            .from('key_assignments')
+            .delete()
+            .eq('key_id', key.id)
+            .eq('request_id', req.id)
+            .eq('assigned_at', selectedWednesday);
+          finalDotz--;
+        }
       }
+
+      // טיפול בחדרים פלוגתיים
+      if (diffLarge > 0) {
+        for (let i = 0; i < diffLarge && largeAvailable.length > 0; i++) {
+          const key = largeAvailable.shift();
+          await supabase
+            .from('key_assignments')
+            .insert({
+              key_id: key.id,
+              request_id: req.id,
+              assigned_at: selectedWednesday
+            });
+          finalLarge++;
+        }
+      } else if (diffLarge < 0) {
+        const toReturn = Math.min(Math.abs(diffLarge), largeAssigned.length);
+        for (let i = 0; i < toReturn; i++) {
+          const key = largeAssigned.shift();
+          await supabase
+            .from('key_assignments')
+            .delete()
+            .eq('key_id', key.id)
+            .eq('request_id', req.id)
+            .eq('assigned_at', selectedWednesday);
+          finalLarge--;
+        }
+      }
+
+      // עדכון הבקשה
+      const totalRequested = newSmall + newDotz + newLarge;
+      const totalAssigned = finalSmall + finalDotz + finalLarge;
+
+      await supabase
+        .from('keys_request')
+        .update({
+          single_team_amount: newSmall,
+          two_team_amount: newDotz,
+          company_amount: newLarge,
+          assigned_small_rooms: finalSmall,
+          assigned_dotz_rooms: finalDotz,
+          assigned_large_rooms: finalLarge,
+          missing_rooms: totalRequested - totalAssigned
+        })
+        .eq('id', req.id);
+
+      setNotification({
+        open: true,
+        message: 'החלוקה עודכנה בהצלחה',
+        severity: 'success'
+      });
+      setEditingId(null);
+      fetchRequests();
+    } catch (err) {
+      setNotification({
+        open: true,
+        message: 'שגיאה בעדכון החלוקה',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
     }
-
-    // טיפול בחדרי דו"צ
-    if (diffDotz > 0) {
-      for (let i = 0; i < diffDotz && dotzAvailable.length > 0; i++) {
-        const key = dotzAvailable.shift();
-        await supabase
-          .from('key_assignments')
-          .insert({ 
-            key_id: key.id, 
-            request_id: req.id, 
-            assigned_at: selectedWednesday
-          });
-        finalDotz++;
-      }
-    } else if (diffDotz < 0) {
-      const toReturn = Math.min(Math.abs(diffDotz), dotzAssigned.length);
-      for (let i = 0; i < toReturn; i++) {
-        const key = dotzAssigned.shift();
-        await supabase
-          .from('key_assignments')
-          .delete()
-          .eq('key_id', key.id)
-          .eq('request_id', req.id)
-          .eq('assigned_at', selectedWednesday);
-        finalDotz--;
-      }
-    }
-
-    // טיפול בחדרים פלוגתיים
-    if (diffLarge > 0) {
-      for (let i = 0; i < diffLarge && largeAvailable.length > 0; i++) {
-        const key = largeAvailable.shift();
-        await supabase
-          .from('key_assignments')
-          .insert({ 
-            key_id: key.id, 
-            request_id: req.id, 
-            assigned_at: selectedWednesday
-          });
-        finalLarge++;
-      }
-    } else if (diffLarge < 0) {
-      const toReturn = Math.min(Math.abs(diffLarge), largeAssigned.length);
-      for (let i = 0; i < toReturn; i++) {
-        const key = largeAssigned.shift();
-        await supabase
-          .from('key_assignments')
-          .delete()
-          .eq('key_id', key.id)
-          .eq('request_id', req.id)
-          .eq('assigned_at', selectedWednesday);
-        finalLarge--;
-      }
-    }
-
-    // עדכון הבקשה
-    const totalRequested = newSmall + newDotz + newLarge;
-    const totalAssigned = finalSmall + finalDotz + finalLarge;
-
-    await supabase
-      .from('keys_request')
-      .update({
-        single_team_amount: newSmall,
-        two_team_amount: newDotz,
-        company_amount: newLarge,
-        assigned_small_rooms: finalSmall,
-        assigned_dotz_rooms: finalDotz,
-        assigned_large_rooms: finalLarge,
-        missing_rooms: totalRequested - totalAssigned
-      })
-      .eq('id', req.id);
-
-    setNotification({ 
-      open: true, 
-      message: 'החלוקה עודכנה בהצלחה', 
-      severity: 'success' 
-    });
-    setEditingId(null);
-    fetchRequests();
-  } catch (err) {
-    setNotification({ 
-      open: true, 
-      message: 'שגיאה בעדכון החלוקה', 
-      severity: 'error' 
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleDeleteRequest = async (req) => {
     setLoading(true);
@@ -321,7 +329,7 @@ const updateApprovedRequest = async (req) => {
           .delete()
           .eq('request_id', req.id);
       }
-      
+
       const { error } = await supabase
         .from('keys_request')
         .delete()
@@ -329,19 +337,19 @@ const updateApprovedRequest = async (req) => {
 
       if (error) throw error;
 
-      setNotification({ 
-        open: true, 
-        message: req.status === 'approved' 
-          ? 'הבקשה נמחקה והמפתחות שוחררו' 
-          : 'הבקשה נמחקה בהצלחה', 
-        severity: 'success' 
+      setNotification({
+        open: true,
+        message: req.status === 'approved'
+          ? 'הבקשה נמחקה והמפתחות שוחררו'
+          : 'הבקשה נמחקה בהצלחה',
+        severity: 'success'
       });
       fetchRequests();
     } catch (err) {
-      setNotification({ 
-        open: true, 
-        message: 'שגיאה במחיקת הבקשה', 
-        severity: 'error' 
+      setNotification({
+        open: true,
+        message: 'שגיאה במחיקת הבקשה',
+        severity: 'error'
       });
     } finally {
       setConfirmState({ ...confirmState, open: false });
@@ -349,175 +357,175 @@ const updateApprovedRequest = async (req) => {
     }
   };
 
-const resetDistribution = async (requestList) => {
-  try {
-    for (const req of requestList) {
-      const { error: deleteError } = await supabase
-        .from('key_assignments')
-        .delete()
-        .eq('request_id', req.id)
-        .eq('assigned_at', selectedWednesday);
-      
-      if (deleteError) {
-        console.error('Error deleting assignments:', deleteError);
-        return false;
+  const resetDistribution = async (requestList) => {
+    try {
+      for (const req of requestList) {
+        const { error: deleteError } = await supabase
+          .from('key_assignments')
+          .delete()
+          .eq('request_id', req.id)
+          .eq('assigned_at', selectedWednesday);
+
+        if (deleteError) {
+          console.error('Error deleting assignments:', deleteError);
+          return false;
+        }
+
+        const { error: requestError } = await supabase
+          .from('keys_request')
+          .update({
+            status: 'pending',
+            assigned_small_rooms: 0,
+            assigned_dotz_rooms: 0,
+            assigned_large_rooms: 0,
+            missing_rooms: 0
+          })
+          .eq('id', req.id);
+
+        if (requestError) {
+          console.error('Error resetting request:', requestError);
+          return false;
+        }
       }
-      
-      const { error: requestError } = await supabase
-        .from('keys_request')
-        .update({
-          status: 'pending', 
-          assigned_small_rooms: 0, 
-          assigned_dotz_rooms: 0, 
-          assigned_large_rooms: 0, 
-          missing_rooms: 0
-        })
-        .eq('id', req.id);
-      
-      if (requestError) {
-        console.error('Error resetting request:', requestError);
-        return false;
-      }
+      return true;
+    } catch (err) {
+      console.error('Reset distribution error:', err);
+      return false;
     }
-    return true;
-  } catch (err) { 
-    console.error('Reset distribution error:', err);
-    return false; 
-  }
-};
+  };
 
-const processDistribution = async (pendingList) => {
-  const { data: allKeys, error: fetchError } = await supabase
-    .from('keysmanager_keys')
-    .select('*');
+  const processDistribution = async (pendingList) => {
+    const { data: allKeys, error: fetchError } = await supabase
+      .from('keysmanager_keys')
+      .select('*');
 
-  if (fetchError) {
-    console.error('Error fetching keys:', fetchError);
-    setNotification({ open: true, message: 'שגיאה בטעינת מפתחות', severity: 'error' });
-    setLoading(false);
-    return 0;
-  }
-
-  if (!allKeys || allKeys.length === 0) {
-    setNotification({ open: true, message: 'אין מפתחות זמינים', severity: 'warning' });
-    setLoading(false);
-    return 0;
-  }
-
-  const { data: weekApprovedRequests } = await supabase
-    .from('keys_request')
-    .select('id')
-    .eq('range_start', selectedWednesday)
-    .eq('status', 'approved');
-
-  const approvedRequestIds = weekApprovedRequests?.map(r => r.id) || [];
-
-  const { data: existingAssignments } = await supabase
-    .from('key_assignments')
-    .select('key_id')
-    .eq('assigned_at', selectedWednesday);
-
-  const assignedKeyIds = new Set(existingAssignments?.map(a => a.key_id) || []);
-  const availableKeys = allKeys.filter(k => !assignedKeyIds.has(k.id));
-
-
-  let smallKeys = availableKeys.filter(k => k.room_type_id === 1);
-  let dotzKeys = availableKeys.filter(k => k.room_type_id === 3);
-  let largeKeys = availableKeys.filter(k => k.room_type_id === 2);
-
-
-
-  const requestUpdates = [];
-
-  for (const req of pendingList) {
-    const needsSmall = req.single_team_amount || 0;
-    const needsDotz = req.two_team_amount || 0;
-    const needsLarge = req.company_amount || 0;
-
-
-    let assignedSmall = 0, assignedLarge = 0, assignedDotz = 0;
-
-    for (let i = 0; i < needsSmall && smallKeys.length > 0; i++) {
-      const key = smallKeys.shift();
-      const { error } = await supabase
-        .from('key_assignments')
-        .insert({ 
-          key_id: key.id, 
-          request_id: req.id, 
-          assigned_at: selectedWednesday
-        });
-      
-      if (error) {
-        console.error('Error assigning key:', error);
-      } else {
-        assignedSmall++;
-        assignedKeyIds.add(key.id);
-      }
+    if (fetchError) {
+      console.error('Error fetching keys:', fetchError);
+      setNotification({ open: true, message: 'שגיאה בטעינת מפתחות', severity: 'error' });
+      setLoading(false);
+      return 0;
     }
 
-    for (let i = 0; i < needsDotz && dotzKeys.length > 0; i++) {
-      const key = dotzKeys.shift();
-      const { error } = await supabase
-        .from('key_assignments')
-        .insert({ 
-          key_id: key.id, 
-          request_id: req.id, 
-          assigned_at: selectedWednesday
-        });
-      
-      if (error) {
-        console.error('Error assigning key:', error);
-      } else {
-        assignedDotz++;
-        assignedKeyIds.add(key.id);
-      }
+    if (!allKeys || allKeys.length === 0) {
+      setNotification({ open: true, message: 'אין מפתחות זמינים', severity: 'warning' });
+      setLoading(false);
+      return 0;
     }
 
-    for (let i = 0; i < needsLarge && largeKeys.length > 0; i++) {
-      const key = largeKeys.shift();
-      const { error } = await supabase
-        .from('key_assignments')
-        .insert({ 
-          key_id: key.id, 
-          request_id: req.id, 
-          assigned_at: selectedWednesday
-        });
-      
-      if (error) {
-        console.error('Error assigning key:', error);
-      } else {
-        assignedLarge++;
-        assignedKeyIds.add(key.id);
+    const { data: weekApprovedRequests } = await supabase
+      .from('keys_request')
+      .select('id')
+      .eq('range_start', selectedWednesday)
+      .eq('status', 'approved');
+
+    const approvedRequestIds = weekApprovedRequests?.map(r => r.id) || [];
+
+    const { data: existingAssignments } = await supabase
+      .from('key_assignments')
+      .select('key_id')
+      .eq('assigned_at', selectedWednesday);
+
+    const assignedKeyIds = new Set(existingAssignments?.map(a => a.key_id) || []);
+    const availableKeys = allKeys.filter(k => !assignedKeyIds.has(k.id));
+
+
+    let smallKeys = availableKeys.filter(k => k.room_type_id === 1);
+    let dotzKeys = availableKeys.filter(k => k.room_type_id === 3);
+    let largeKeys = availableKeys.filter(k => k.room_type_id === 2);
+
+
+
+    const requestUpdates = [];
+
+    for (const req of pendingList) {
+      const needsSmall = req.single_team_amount || 0;
+      const needsDotz = req.two_team_amount || 0;
+      const needsLarge = req.company_amount || 0;
+
+
+      let assignedSmall = 0, assignedLarge = 0, assignedDotz = 0;
+
+      for (let i = 0; i < needsSmall && smallKeys.length > 0; i++) {
+        const key = smallKeys.shift();
+        const { error } = await supabase
+          .from('key_assignments')
+          .insert({
+            key_id: key.id,
+            request_id: req.id,
+            assigned_at: selectedWednesday
+          });
+
+        if (error) {
+          console.error('Error assigning key:', error);
+        } else {
+          assignedSmall++;
+          assignedKeyIds.add(key.id);
+        }
       }
+
+      for (let i = 0; i < needsDotz && dotzKeys.length > 0; i++) {
+        const key = dotzKeys.shift();
+        const { error } = await supabase
+          .from('key_assignments')
+          .insert({
+            key_id: key.id,
+            request_id: req.id,
+            assigned_at: selectedWednesday
+          });
+
+        if (error) {
+          console.error('Error assigning key:', error);
+        } else {
+          assignedDotz++;
+          assignedKeyIds.add(key.id);
+        }
+      }
+
+      for (let i = 0; i < needsLarge && largeKeys.length > 0; i++) {
+        const key = largeKeys.shift();
+        const { error } = await supabase
+          .from('key_assignments')
+          .insert({
+            key_id: key.id,
+            request_id: req.id,
+            assigned_at: selectedWednesday
+          });
+
+        if (error) {
+          console.error('Error assigning key:', error);
+        } else {
+          assignedLarge++;
+          assignedKeyIds.add(key.id);
+        }
+      }
+
+
+      requestUpdates.push({
+        id: req.id,
+        status: 'approved',
+        assigned_small_rooms: assignedSmall,
+        assigned_dotz_rooms: assignedDotz,
+        assigned_large_rooms: assignedLarge,
+        missing_rooms: (needsSmall + needsDotz + needsLarge) - (assignedSmall + assignedDotz + assignedLarge)
+      });
     }
 
+    for (const reqUpdate of requestUpdates) {
+      await supabase.from('keys_request').update(reqUpdate).eq('id', reqUpdate.id);
+    }
 
-    requestUpdates.push({
-      id: req.id,
-      status: 'approved',
-      assigned_small_rooms: assignedSmall,
-      assigned_dotz_rooms: assignedDotz,
-      assigned_large_rooms: assignedLarge,
-      missing_rooms: (needsSmall + needsDotz + needsLarge) - (assignedSmall + assignedDotz + assignedLarge)
+    const totalAssigned = requestUpdates.reduce((sum, r) => sum + r.assigned_small_rooms + r.assigned_dotz_rooms + r.assigned_large_rooms, 0);
+
+
+    setNotification({
+      open: true,
+      message: `חולקו ${totalAssigned} מפתחות בהצלחה`,
+      severity: 'success'
     });
-  }
 
-  for (const reqUpdate of requestUpdates) {
-    await supabase.from('keys_request').update(reqUpdate).eq('id', reqUpdate.id);
-  }
-
-  const totalAssigned = requestUpdates.reduce((sum, r) => sum + r.assigned_small_rooms + r.assigned_dotz_rooms + r.assigned_large_rooms, 0);
-  
-
-  setNotification({ 
-    open: true, 
-    message: `חולקו ${totalAssigned} מפתחות בהצלחה`, 
-    severity: 'success' 
-  });
-
-  setLoading(false);
-  return requestUpdates.length;
-};
+    setLoading(false);
+    return requestUpdates.length;
+  };
 
   const filteredRequests = requests.filter(req => req.range_start === selectedWednesday);
 
@@ -526,28 +534,26 @@ const processDistribution = async (pendingList) => {
     let assigned = field === 'single_team_amount' ? req.assigned_small_rooms : field === 'two_team_amount' ? req.assigned_dotz_rooms : req.assigned_large_rooms;
 
     const adjustValue = (delta) => {
-        const newVal = Math.max(0, (editValues[field] || 0) + delta);
-        setEditValues({ ...editValues, [field]: newVal });
+      const newVal = Math.max(0, (editValues[field] || 0) + delta);
+      setEditValues({ ...editValues, [field]: newVal });
     };
 
     if (isEditing) {
       return (
         <Stack direction="row" alignItems="center" spacing={0.5} justifyContent="center">
-          <MuiIconButton size="small" onClick={() => adjustValue(-1)} sx={{ color: THEME_COLOR, p: 0.5 }}>
+          <MuiIconButton size="small" onClick={() => adjustValue(-1)} sx={{ color: ALERT_COLOR, p: 0.5 }}>
             <Minus size={16} />
           </MuiIconButton>
-          <TextField
-            size="small" type="number" variant="standard"
-            value={editValues[field]}
-            onChange={(e) => setEditValues({ ...editValues, [field]: Math.max(0, parseInt(e.target.value) || 0) })}
-            inputProps={{ style: { textAlign: 'left', fontWeight: 800, width: '40px' } }}
-          />
-          <MuiIconButton size="small" onClick={() => adjustValue(+1)} sx={{ color: ALERT_COLOR, p: 0.5 }}>
+          <Typography sx={{ fontWeight: 800, fontSize: '1rem', minWidth: '30px', textAlign: 'center' }}>
+            {editValues[field]}
+          </Typography>
+          <MuiIconButton size="small" onClick={() => adjustValue(+1)} sx={{ color: THEME_COLOR, p: 0.5 }}>
             <Plus size={16} />
           </MuiIconButton>
         </Stack>
       );
     }
+
     return (
       <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>
         <span style={{ color: THEME_COLOR }}>{assigned || 0}</span>/{value}
@@ -581,8 +587,8 @@ const processDistribution = async (pendingList) => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 6, direction: 'rtl', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      
-      <ConfirmDialog 
+
+      <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}
         message={confirmState.message}
@@ -596,62 +602,68 @@ const processDistribution = async (pendingList) => {
       </Snackbar>
 
       <Box sx={{ textAlign: 'center', mb: 6 }}>
-          <Typography variant="h3" sx={{ fontWeight: 950, mb: 1 }}>ניהול בקשות</Typography>
-          <Typography sx={{ color: 'text.secondary', fontWeight: 500 }}>חלוקת מפתחות ועריכת דרישות גדודים</Typography>
+        <Typography variant="h3" sx={{ fontWeight: 950, mb: 1 }}>ניהול בקשות</Typography>
+        <Typography sx={{ color: 'text.secondary', fontWeight: 500 }}>חלוקת מפתחות ועריכת דרישות גדודים</Typography>
       </Box>
 
       {/* Date Navigator */}
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', mb: 6 }}>
         <Box sx={{ position: 'relative', width: '100%', maxWidth: 500, mb: 8 }}>
           <Paper elevation={0} sx={{ p: 1.5, borderRadius: '24px', bgcolor: isDark ? 'rgba(255,255,255,0.02)' : '#f8fafc', border: '1px solid', borderColor: THEME_COLOR, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <MuiIconButton onClick={() => wednesdayOffset > 0 && setWednesdayOffset(prev => prev - 1)} disabled={wednesdayOffset === 0}><ChevronRight size={28} /></MuiIconButton>
+            <MuiIconButton onClick={() => setWednesdayOffset(prev => prev - 1)}>
+              <ChevronRight size={28} />
+            </MuiIconButton>
             <Box sx={{ textAlign: 'center', flex: 1 }}>
               <Typography variant="caption" sx={{ fontWeight: 800, color: THEME_COLOR, display: 'block', mb: 0.5 }}>יום רביעי</Typography>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>{selectedWednesday && new Date(selectedWednesday).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}</Typography>
             </Box>
-            <MuiIconButton onClick={() => setWednesdayOffset(prev => prev + 1)} sx={{ color: THEME_COLOR, bgcolor: `${THEME_COLOR}10` }}><ChevronLeft size={28} /></MuiIconButton>
+            <MuiIconButton onClick={() => setWednesdayOffset(prev => prev + 1)} sx={{ color: THEME_COLOR, bgcolor: `${THEME_COLOR}10` }}>
+              <ChevronLeft size={28} />
+            </MuiIconButton>
           </Paper>
           <AnimatePresence>
-            {wednesdayOffset > 0 && (
+            {wednesdayOffset !== 0 && (
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} style={{ position: 'absolute', bottom: -45, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
-                <Button size="small" startIcon={<RotateCcw size={14} />} onClick={() => setWednesdayOffset(0)} sx={{ color: THEME_COLOR, fontWeight: 800, fontSize: '0.85rem' }}> חזור לרביעי הנוכחי </Button>
+                <Button size="small" startIcon={<RotateCcw size={14} />} onClick={() => setWednesdayOffset(0)} sx={{ color: THEME_COLOR, fontWeight: 800, fontSize: '0.85rem' }}>
+                  חזור לרביעי הנוכחי
+                </Button>
               </motion.div>
             )}
           </AnimatePresence>
         </Box>
 
-        <Stack direction="row" spacing={2}>
-            <Button onClick={async () => { setLoading(true); await processDistribution(filteredRequests.filter(r => r.status === 'pending')); fetchRequests(); }} disabled={loading || filteredRequests.length === 0} variant="contained" sx={{ py: 2, px: 6, borderRadius: '20px', fontSize: '1.1rem', fontWeight: 900, background: `linear-gradient(135deg, ${THEME_COLOR} 0%, #059669 100%)`, boxShadow: `0 12px 24px ${THEME_COLOR}30` }}>
-                {loading ? <CircularProgress size={26} color="inherit" /> : 'חלק באופן שווה ואשר הכל'}
-            </Button>
-            <Button 
-                onClick={() => setConfirmState({
-                    open: true,
-                    title: "איפוס חלוקה שבועי",
-                    message: "האם אתה בטוח שברצונך לאפס את כל החלוקה לשבוע זה? המפתחות ישוחררו.",
-                    isDestructive: true,
-                    onConfirm: async () => {
-                        setLoading(true);
-                        const success = await resetDistribution(filteredRequests.filter(r => r.status === 'approved'));
-                        if (success) {
-                          setNotification({ open: true, message: 'החלוקה אופסה והמפתחות שוחררו', severity: 'success' });
-                        } else {
-                          setNotification({ open: true, message: 'שגיאה באיפוס החלוקה', severity: 'error' });
-                        }
-                        fetchRequests();
-                        setConfirmState({ ...confirmState, open: false });
-                    }
-                })}
-                disabled={loading || !filteredRequests.some(r => r.status === 'approved')} 
-                variant="outlined" color="error" startIcon={<Trash2 size={20} />} 
-                sx={{ py: 2, px: 4, borderRadius: '20px', fontWeight: 800, border: '2px solid' }}
-            > 
-                איפוס חלוקה 
-            </Button>
+        <Stack direction="row" spacing={2} pacing={3}>
+          <Button onClick={async () => { setLoading(true); await processDistribution(filteredRequests.filter(r => r.status === 'pending')); fetchRequests(); }} disabled={loading || filteredRequests.length === 0} variant="contained" sx={{ py: 1, px: 3, borderRadius: '16px', fontSize: '0.9rem', fontWeight: 900, background: `linear-gradient(135deg, ${THEME_COLOR} 0%, #059669 100%)`, boxShadow: `0 12px 24px ${THEME_COLOR}30` }}>
+            {loading ? <CircularProgress size={26} color="inherit" /> : 'חלק באופן שווה ואשר הכל'}
+          </Button>
+          <Button
+            onClick={() => setConfirmState({
+              open: true,
+              title: "איפוס חלוקה שבועי",
+              message: "האם אתה בטוח שברצונך לאפס את כל החלוקה לשבוע זה? המפתחות ישוחררו.",
+              isDestructive: true,
+              onConfirm: async () => {
+                setLoading(true);
+                const success = await resetDistribution(filteredRequests.filter(r => r.status === 'approved'));
+                if (success) {
+                  setNotification({ open: true, message: 'החלוקה אופסה והמפתחות שוחררו', severity: 'success' });
+                } else {
+                  setNotification({ open: true, message: 'שגיאה באיפוס החלוקה', severity: 'error' });
+                }
+                fetchRequests();
+                setConfirmState({ ...confirmState, open: false });
+              }
+            })}
+            disabled={loading || !filteredRequests.some(r => r.status === 'approved')}
+            variant="outlined" color="error" startIcon={<Trash2 size={20} />}
+            sx={{ py: 1, px: 3, borderRadius: '16px', fontWeight: 800, border: '2px solid', fontSize: '0.9rem' }}
+          >
+            איפוס חלוקה
+          </Button>
         </Stack>
       </Box>
 
-      <TableContainer component={Paper} sx={{ width: '100%', borderRadius: '28px', border: '1px solid', borderColor: 'divider', boxShadow: 'none', overflow: 'hidden' }}>
+      <TableContainer component={Paper} sx={{ width: '100%', borderRadius: '28px', border: '1px solid', borderColor: 'divider', boxShadow: 'none', overflow: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#f8fafc' }}>
@@ -675,7 +687,7 @@ const processDistribution = async (pendingList) => {
                   {req.missing_rooms > 0 ? <Chip label={req.missing_rooms} size="small" sx={{ bgcolor: 'rgba(239, 68, 68, 0.1)', color: ALERT_COLOR, fontWeight: 900, borderRadius: '8px' }} /> : <Typography sx={{ color: '#94a3b8' }}>-</Typography>}
                 </TableCell>
                 <TableCell align="center">
-                  <Chip label={req.status === 'pending' ? 'ממתין' : 'אושר'} icon={req.status === 'pending' ? <Clock size={14}/> : <CheckCircle size={14}/>} sx={{ fontWeight: 800, borderRadius: '12px', bgcolor: req.status === 'pending' ? 'rgba(251, 146, 60, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: req.status === 'pending' ? '#fb923c' : '#10b981' }} />
+                  <Chip label={req.status === 'pending' ? 'ממתין' : 'אושר'} icon={req.status === 'pending' ? <Clock size={14} /> : <CheckCircle size={14} />} sx={{ fontWeight: 800, borderRadius: '12px', bgcolor: req.status === 'pending' ? 'rgba(251, 146, 60, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: req.status === 'pending' ? '#fb923c' : '#10b981' }} />
                 </TableCell>
                 <TableCell align="center">
                   <Stack direction="row" spacing={1} justifyContent="center">
@@ -684,19 +696,19 @@ const processDistribution = async (pendingList) => {
                     ) : (
                       <>
                         <Tooltip title="ערוך"><MuiIconButton onClick={() => handleEditClick(req)} size="small" sx={{ color: UPDATE_COLOR }}><Pencil size={18} /></MuiIconButton></Tooltip>
-                        
+
                         <Tooltip title="מחק בקשה">
-                          <MuiIconButton 
+                          <MuiIconButton
                             onClick={() => setConfirmState({
                               open: true,
                               title: "מחיקת בקשה",
-                              message: req.status === 'approved' 
+                              message: req.status === 'approved'
                                 ? `האם אתה בטוח שברצונך למחוק את הבקשה של גדוד ${req.battalion_name}? כל המפתחות שהוקצו ישוחררו. פעולה זו אינה הפיכה.`
                                 : `האם אתה בטוח שברצונך למחוק את הבקשה של גדוד ${req.battalion_name}? פעולה זו אינה הפיכה.`,
                               isDestructive: true,
                               onConfirm: () => handleDeleteRequest(req)
-                            })} 
-                            size="small" 
+                            })}
+                            size="small"
                             sx={{ color: ALERT_COLOR }}
                           >
                             <Trash2 size={18} />
@@ -704,27 +716,27 @@ const processDistribution = async (pendingList) => {
                         </Tooltip>
 
                         {req.status === 'pending' ? (
-                            <Tooltip title="הקצאה אישית"><MuiIconButton onClick={async () => { setLoading(true); await processDistribution([req]); fetchRequests(); }} size="small" sx={{ color: THEME_COLOR }}><PublishedWithChangesIcon size={18} /></MuiIconButton></Tooltip>
+                          <Tooltip title="הקצאה אישית"><MuiIconButton onClick={async () => { setLoading(true); await processDistribution([req]); fetchRequests(); }} size="small" sx={{ color: THEME_COLOR }}><PublishedWithChangesIcon size={18} /></MuiIconButton></Tooltip>
                         ) : (
-                            <Tooltip title="איפוס">
-                                <MuiIconButton onClick={() => setConfirmState({
-                                    open: true,
-                                    title: "ביטול הקצאה גדודית",
-                                    message: `האם לבטל את ההקצאה עבור גדוד ${req.battalion_name}? המפתחות ישוחררו והבקשה תעבור למצב ממתין.`,
-                                    isDestructive: false,
-                                    onConfirm: async () => {
-                                        setLoading(true);
-                                        const success = await resetDistribution([req]);
-                                        if (success) {
-                                          setNotification({ open: true, message: 'ההקצאה בוטלה והמפתחות שוחררו', severity: 'success' });
-                                        } else {
-                                          setNotification({ open: true, message: 'שגיאה בביטול ההקצאה', severity: 'error' });
-                                        }
-                                        fetchRequests();
-                                        setConfirmState({ ...confirmState, open: false });
-                                    }
-                                })} size="small" sx={{ color: ALERT_COLOR }}><RotateCcw size={18} /></MuiIconButton>
-                            </Tooltip>
+                          <Tooltip title="איפוס">
+                            <MuiIconButton onClick={() => setConfirmState({
+                              open: true,
+                              title: "ביטול הקצאה גדודית",
+                              message: `האם לבטל את ההקצאה עבור גדוד ${req.battalion_name}? המפתחות ישוחררו והבקשה תעבור למצב ממתין.`,
+                              isDestructive: false,
+                              onConfirm: async () => {
+                                setLoading(true);
+                                const success = await resetDistribution([req]);
+                                if (success) {
+                                  setNotification({ open: true, message: 'ההקצאה בוטלה והמפתחות שוחררו', severity: 'success' });
+                                } else {
+                                  setNotification({ open: true, message: 'שגיאה בביטול ההקצאה', severity: 'error' });
+                                }
+                                fetchRequests();
+                                setConfirmState({ ...confirmState, open: false });
+                              }
+                            })} size="small" sx={{ color: ALERT_COLOR }}><RotateCcw size={18} /></MuiIconButton>
+                          </Tooltip>
                         )}
                       </>
                     )}

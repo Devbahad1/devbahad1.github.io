@@ -2,7 +2,7 @@ import {
     Box, Button, Card, Container, Typography, Alert, CircularProgress, IconButton, Paper, Stack
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
     Send, Calendar, ChevronLeft, ChevronRight, Plus, Minus, RotateCcw, Save, ShieldAlert
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
@@ -26,7 +26,7 @@ export default function SubmitKeyRequest() {
         range_end: ''
     });
 
-    const THEME_COLOR = '#10b981'; 
+    const THEME_COLOR = '#10b981';
     const UPDATE_COLOR = '#3b82f6';
 
     // בדיקת הרשאות גישה
@@ -44,10 +44,20 @@ export default function SubmitKeyRequest() {
     }, [user, hasAccess, navigate]);
 
     const getNextWednesday = (weeks) => {
-        const d = new Date();
-        d.setDate(d.getDate() + (14 + (weeks * 7)));
-        d.setDate(d.getDate() + (3 - d.getDay() + 7) % 7 || 7);
-        return d;
+        if (weeks >= 0) {
+            // לוגיקה מקורית - רביעי בעוד שבועיים+
+            const d = new Date();
+            d.setDate(d.getDate() + (14 + (weeks * 7)));
+            d.setDate(d.getDate() + (3 - d.getDay() + 7) % 7 || 7);
+            return d;
+        } else {
+            // חזרה אחורה לצפייה בלבד
+            const d = new Date();
+            const day = d.getDay();
+            const daysUntilWednesday = (3 - day + 7) % 7 || 7;
+            d.setDate(d.getDate() + daysUntilWednesday + (weeks * 7));
+            return d;
+        }
     };
 
     const fetchExistingRequest = useCallback(async (date) => {
@@ -56,11 +66,10 @@ export default function SubmitKeyRequest() {
         try {
             const { data, error } = await supabase
                 .from('keys_request')
-                .select('id, single_team_amount, two_team_amount, company_amount')
+                .select('id, single_team_amount, two_team_amount, company_amount, status, assigned_small_rooms, assigned_dotz_rooms, assigned_large_rooms, missing_rooms')
                 .eq('requester', user.group_id)
                 .eq('range_start', date)
-                .eq('status', 'pending')
-                .maybeSingle();
+                .maybeSingle(); // הסרנו את הפילטר של status='pending'
 
             if (error) throw error;
 
@@ -70,7 +79,12 @@ export default function SubmitKeyRequest() {
                     ...prev,
                     single_team_amount: data.single_team_amount,
                     two_team_amount: data.two_team_amount,
-                    company_amount: data.company_amount
+                    company_amount: data.company_amount,
+                    status: data.status,
+                    assigned_small_rooms: data.assigned_small_rooms,
+                    assigned_dotz_rooms: data.assigned_dotz_rooms,
+                    assigned_large_rooms: data.assigned_large_rooms,
+                    missing_rooms: data.missing_rooms
                 }));
             } else {
                 setExistingRequestId(null);
@@ -78,7 +92,12 @@ export default function SubmitKeyRequest() {
                     ...prev,
                     single_team_amount: 0,
                     two_team_amount: 0,
-                    company_amount: 0
+                    company_amount: 0,
+                    status: null,
+                    assigned_small_rooms: 0,
+                    assigned_dotz_rooms: 0,
+                    assigned_large_rooms: 0,
+                    missing_rooms: 0
                 }));
             }
         } catch (err) {
@@ -90,22 +109,21 @@ export default function SubmitKeyRequest() {
 
     useEffect(() => {
         if (!hasAccess) return;
-        
+
         const targetWednesday = getNextWednesday(wednesdayOffset);
         const dateStr = targetWednesday.toISOString().split('T')[0];
-        
+
         // איפוס הודעות במעבר בין שבועות
         setSubmitSuccess(false);
         setError(null);
-        
+
         setFormData(prev => ({ ...prev, range_start: dateStr, range_end: dateStr }));
         fetchExistingRequest(dateStr);
     }, [wednesdayOffset, fetchExistingRequest, hasAccess]);
 
     const handleOffsetChange = (delta) => {
-        if (delta < 0 && wednesdayOffset === 0) return;
-        setWednesdayOffset(prev => prev + delta);
-    };
+    setWednesdayOffset(prev => prev + delta);
+};
 
     const fetchAncestorGroup = async (startGroupId, targetTypeName) => {
         const { data } = await supabase.rpc('get_parent_group_by_type', {
@@ -128,6 +146,10 @@ export default function SubmitKeyRequest() {
         setLoading(true);
         setError(null);
         setSubmitSuccess(false);
+        if (wednesdayOffset < 0) {
+            setError('לא ניתן לשלוח בקשה לתאריך שעבר');
+            return;
+        }
 
         try {
             const totalRooms = formData.single_team_amount + formData.two_team_amount + formData.company_amount;
@@ -175,12 +197,16 @@ export default function SubmitKeyRequest() {
         }}>
             <Typography sx={{ fontWeight: 800, fontSize: '1.1rem' }}>{label}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-                <IconButton onClick={() => updateAmount(field, -1)} sx={{ border: '2px solid', borderColor: 'divider', width: 42, height: 42 }}>
+                <IconButton onClick={() => updateAmount(field, -1)}
+                    disabled={wednesdayOffset < 0}
+                    sx={{ border: '2px solid', borderColor: 'divider', width: 42, height: 42 }}>
                     <Minus size={20} />
                 </IconButton>
                 <Typography sx={{ fontSize: '1.8rem', fontWeight: 900, minWidth: '40px', textAlign: 'center' }}>{formData[field]}</Typography>
-                <IconButton 
+                <IconButton
                     onClick={() => updateAmount(field, 1)}
+                    disabled={wednesdayOffset < 0}
+
                     sx={{ bgcolor: existingRequestId ? UPDATE_COLOR : THEME_COLOR, color: 'white', width: 42, height: 42, '&:hover': { opacity: 0.9 } }}
                 >
                     <Plus size={20} />
@@ -212,6 +238,105 @@ export default function SubmitKeyRequest() {
             </Container>
         );
     }
+    // מסך בקשה מאושרת
+    if (formData.status === 'approved') {
+        const totalRequested = formData.single_team_amount + formData.two_team_amount + formData.company_amount;
+        const totalAssigned = (formData.assigned_small_rooms || 0) + (formData.assigned_dotz_rooms || 0) + (formData.assigned_large_rooms || 0);
+
+        return (
+            <Container maxWidth="sm" sx={{ py: 6, direction: 'rtl' }}>
+                <Box sx={{ textAlign: 'center', mb: 5 }}>
+                    <Typography variant="h3" sx={{ fontWeight: 950, mb: 1 }}>בקשת מפתחות</Typography>
+                </Box>
+
+                {/* בורר תאריך */}
+                <Card sx={{
+                    p: 1.5, borderRadius: '24px', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', bgcolor: isDark ? '#1a1a2e' : '#f8fafc',
+                    border: '1px solid', borderColor: '#10b981', mb: 5
+                }}>
+                    <IconButton onClick={() => handleOffsetChange(-1)}>
+                        <ChevronRight size={28} />
+                    </IconButton>
+                    <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: '#10b981', display: 'block', mb: 0.5 }}>יום רביעי</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                            {new Date(formData.range_start).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </Typography>
+                    </Box>
+                    <IconButton onClick={() => handleOffsetChange(1)} sx={{ color: '#10b981' }}>
+                        <ChevronLeft size={28} />
+                    </IconButton>
+                </Card>
+
+                {wednesdayOffset !== 0 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+                        <Button
+                            size="small"
+                            startIcon={<RotateCcw size={14} />}
+                            onClick={() => setWednesdayOffset(0)}
+                            sx={{ color: '#10b981', fontWeight: 800, fontSize: '0.85rem' }}
+                        >
+                            חזור לרביעי הנוכחי
+                        </Button>
+                    </Box>
+                )}
+
+
+                {/* כרטיס אישור */}
+                <Paper elevation={0} sx={{
+                    p: 4, borderRadius: '28px', textAlign: 'center',
+                    border: '2px solid #10b981',
+                    bgcolor: isDark ? 'rgba(16,185,129,0.05)' : 'rgba(16,185,129,0.03)',
+                    mb: 3
+                }}>
+                    <Typography sx={{ fontSize: '3rem', mb: 1 }}>✅</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 900, color: '#10b981', mb: 3 }}>
+                        הבקשה אושרה!
+                    </Typography>
+
+                    <Stack spacing={2}>
+                        <Paper elevation={0} sx={{ p: 2, borderRadius: '16px', bgcolor: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: '1px solid', borderColor: 'divider' }}>
+                            <Typography sx={{ fontWeight: 700, mb: 1.5, color: 'text.secondary' }}>כיתות צוותיות</Typography>
+                            <Typography sx={{ fontWeight: 900, fontSize: '1.2rem' }}>
+                                {formData.single_team_amount} / <span style={{ color: '#10b981' }}>{formData.assigned_small_rooms || 0}</span>
+                            </Typography>
+                        </Paper>
+
+                        <Paper elevation={0} sx={{ p: 2, borderRadius: '16px', bgcolor: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: '1px solid', borderColor: 'divider' }}>
+                            <Typography sx={{ fontWeight: 700, mb: 1.5, color: 'text.secondary' }}>כיתות דו-צוותיות</Typography>
+                            <Typography sx={{ fontWeight: 900, fontSize: '1.2rem' }}>
+                                {formData.two_team_amount} / <span style={{ color: '#10b981' }}>{formData.assigned_dotz_rooms || 0}</span>
+                            </Typography>
+                        </Paper>
+
+                        <Paper elevation={0} sx={{ p: 2, borderRadius: '16px', bgcolor: isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc', border: '1px solid', borderColor: 'divider' }}>
+                            <Typography sx={{ fontWeight: 700, mb: 1.5, color: 'text.secondary' }}>כיתות פלוגתיות</Typography>
+                            <Typography sx={{ fontWeight: 900, fontSize: '1.2rem' }}>
+                                {formData.company_amount} / <span style={{ color: '#10b981' }}>{formData.assigned_large_rooms || 0}</span>
+                            </Typography>
+                        </Paper>
+
+                        {/* סיכום */}
+                        <Paper elevation={0} sx={{
+                            p: 2.5, borderRadius: '16px',
+                            bgcolor: isDark ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.05)',
+                            border: '1px solid #10b981'
+                        }}>
+                            <Typography sx={{ fontWeight: 800, fontSize: '1.1rem' }}>
+                                סה״כ התקבלו: {totalRequested} / <span style={{ color: '#10b981', fontSize: '1.4rem' }}>{totalAssigned}</span>
+                            </Typography>
+                            {formData.missing_rooms > 0 && (
+                                <Typography sx={{ fontWeight: 700, color: '#ef4444', mt: 1 }}>
+                                    ⚠️ חסרות {formData.missing_rooms} כיתות
+                                </Typography>
+                            )}
+                        </Paper>
+                    </Stack>
+                </Paper>
+            </Container>
+        );
+    }
 
     return (
         <Container maxWidth="sm" sx={{ py: 6, direction: 'rtl' }}>
@@ -223,13 +348,13 @@ export default function SubmitKeyRequest() {
             </Box>
 
             <Box sx={{ position: 'relative', mb: 7 }}>
-                <Card sx={{ 
-                    p: 1.5, borderRadius: '24px', display: 'flex', alignItems: 'center', 
-                    justifyContent: 'space-between', bgcolor: isDark ? '#1a1a2e' : '#f8fafc', 
+                <Card sx={{
+                    p: 1.5, borderRadius: '24px', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', bgcolor: isDark ? '#1a1a2e' : '#f8fafc',
                     border: '1px solid', borderColor: existingRequestId ? UPDATE_COLOR : THEME_COLOR,
                     boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
                 }}>
-                    <IconButton onClick={() => handleOffsetChange(-1)} disabled={wednesdayOffset === 0}>
+                    <IconButton onClick={() => handleOffsetChange(-1)}>
                         <ChevronRight size={28} />
                     </IconButton>
                     <Box sx={{ textAlign: 'center' }}>
@@ -242,6 +367,18 @@ export default function SubmitKeyRequest() {
                         <ChevronLeft size={28} />
                     </IconButton>
                 </Card>
+                {wednesdayOffset !== 0 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+                        <Button
+                            size="small"
+                            startIcon={<RotateCcw size={14} />}
+                            onClick={() => setWednesdayOffset(0)}
+                            sx={{ color: '#10b981', fontWeight: 800, fontSize: '0.85rem' }}
+                        >
+                            חזור לרביעי הנוכחי
+                        </Button>
+                    </Box>
+                )}
             </Box>
 
             <Stack spacing={2.5} sx={{ mb: 6 }}>
@@ -258,7 +395,7 @@ export default function SubmitKeyRequest() {
             </Box>
 
             {error && <Alert severity="error" sx={{ mb: 3, borderRadius: '16px' }}>{error}</Alert>}
-            
+
             <AnimatePresence>
                 {submitSuccess && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>

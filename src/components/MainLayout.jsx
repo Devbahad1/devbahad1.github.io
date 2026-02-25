@@ -39,7 +39,7 @@ export default function MainLayout() {
     const [authUserId, setAuthUserId] = useState(null);
     const [authUserGroupIds, setAuthUserGroupIds] = useState(null);
     const [isDark, setIsDark] = useState(false);
-    const [drawerOpen, setDrawerOpen] = useState(true);
+    const [drawerOpen, setDrawerOpen] = useState(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -101,7 +101,11 @@ export default function MainLayout() {
             console.error('Error signing out:', error);
         }
     };
-
+    const handleNavClick = () => {
+        if (window.innerWidth < 768) {
+            setDrawerOpen(false);
+        }
+    };
     const toggleTheme = () => {
         setIsDark(!isDark);
     };
@@ -127,7 +131,7 @@ export default function MainLayout() {
     const isAdmin = user?.roles?.includes('מנהל');
     const isStaff = user?.roles?.includes('סגל');
     const isBattalionCommander = user?.roles?.includes('קה״ד גדודי');
-    
+
     const drawerWidth = 280;
 
     // הגדרת כל התכונות עם דרישות הרשאה
@@ -137,7 +141,7 @@ export default function MainLayout() {
         { title: 'ניהול מפתחות', icon: Key, path: '/ManageKeys', color: '#f59e0b', requiredRoles: [] }, // כולם
         { title: 'בקשות מפתחות', icon: FileText, path: '/KeyRequests', color: '#8b5cf6', requiredRoles: ['מנהל', 'קה״ד בה״די'] },
         { title: 'שליחת בקשת מפתח', icon: Send, path: '/Submitkeyrequest', color: '#06b6d4', requiredRoles: ['מנהל', 'קה״ד גדודי'] },
-        { title: 'לו"ז', icon: Notebook, path: '/Schedule', color: '#ef4444', requiredRoles: ['מנהל', 'קה״ד גדודי','קה״ד פלוגתי'] }
+        { title: 'לו"ז', icon: Notebook, path: '/Schedule', color: '#ef4444', requiredRoles: ['מנהל', 'קה״ד גדודי', 'קה״ד פלוגתי'] }
     ];
 
     const allAdminFeatures = [
@@ -227,6 +231,7 @@ export default function MainLayout() {
                 <List sx={{ px: 2, py: 2 }}>
                     <ListItem disablePadding sx={{ mb: 1 }}>
                         <ListItemButton
+                        onClick={handleNavClick}
                             component={Link}
                             to="/Home"
                             sx={{
@@ -260,6 +265,7 @@ export default function MainLayout() {
                             {classroomFeatures.map((feature) => (
                                 <ListItem key={feature.title} disablePadding sx={{ mb: 1 }}>
                                     <ListItemButton
+                                    onClick={handleNavClick}
                                         component={Link}
                                         to={feature.path}
                                         sx={{
@@ -296,6 +302,7 @@ export default function MainLayout() {
                             {adminFeatures.map((feature) => (
                                 <ListItem key={feature.title} disablePadding sx={{ mb: 1 }}>
                                     <ListItemButton
+                                    onClick={handleNavClick}
                                         component={Link}
                                         to={feature.path}
                                         sx={{
@@ -425,9 +432,9 @@ export default function MainLayout() {
                                 />
                             )}
                         </Box>
-                        
+
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                             <Box
+                            <Box
                                 onClick={toggleTheme}
                                 sx={{
                                     width: 40, height: 40, borderRadius: '10px', cursor: 'pointer',
@@ -456,7 +463,7 @@ export default function MainLayout() {
                                 )}
                             </Box>
 
-                             <Box
+                            <Box
                                 onClick={handleSignOut}
                                 sx={{
                                     width: 40, height: 40, borderRadius: '10px', cursor: 'pointer',

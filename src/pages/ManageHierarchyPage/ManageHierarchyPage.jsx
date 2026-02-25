@@ -129,7 +129,80 @@ export default function ManageHierarchyPage() {
         if (!nodeToDelete) return;
 
         try {
-            const { error } = await supabase.from('group_node').delete().eq('id', nodeToDelete.id);
+            const allDescendants = getAllDescendants(nodeToDelete.id);
+            const allIds = [nodeToDelete.id, ...allDescendants.map(d => d.id)];
+
+            // 1. מחק schedule_lessons
+            await supabase
+                .from('schedule_lessons')
+                .delete()
+                .in('team_id', allIds);
+
+            // 2. מצא את כל הבקשות הקשורות לgroup_node ישירות
+            const { data: directRequests } = await supabase
+                .from('keys_request')
+                .select('id')
+                .or(`requestee.in.(${allIds.join(',')}),requester.in.(${allIds.join(',')})`);
+            const directRequestIds = directRequests?.map(r => r.id) || [];
+
+            // 3. מחק key_assignments של הבקשות האלו
+            if (directRequestIds.length > 0) {
+                await supabase
+                    .from('key_assignments')
+                    .delete()
+                    .in('request_id', directRequestIds);
+
+                // 4. מחק keys_request
+                await supabase
+                    .from('keys_request')
+                    .delete()
+                    .in('id', directRequestIds);
+            }
+
+            // 5. נקה keysmanager_keys
+            await supabase
+                .from('keysmanager_keys')
+                .update({ manual_misdar_assignment: null, assigned_group_id: null })
+                .in('manual_misdar_assignment', allIds);
+
+            await supabase
+                .from('keysmanager_keys')
+                .update({ assigned_group_id: null })
+                .in('assigned_group_id', allIds);
+
+            // 6. מצא משתמשים
+            const { data: relatedUsers } = await supabase
+                .from('users')
+                .select('id')
+                .in('group_id', allIds);
+            const userIds = relatedUsers?.map(u => u.id) || [];
+
+            if (userIds.length > 0) {
+                // 7. מחק tasks
+                await supabase
+                    .from('tasks')
+                    .delete()
+                    .in('assignee_id', userIds);
+
+                // 8. מחק user_roles
+                await supabase
+                    .from('user_roles')
+                    .delete()
+                    .in('user_id', userIds);
+
+                // 9. מחק users
+                await supabase
+                    .from('users')
+                    .delete()
+                    .in('id', userIds);
+            }
+
+            // 10. מחק את היחידה עצמה
+            const { error } = await supabase
+                .from('group_node')
+                .delete()
+                .eq('id', nodeToDelete.id);
+
             if (error) throw error;
 
             showSnackbar(`היחידה "${nodeToDelete.name}" נמחקה בהצלחה`);
@@ -142,7 +215,6 @@ export default function ManageHierarchyPage() {
             setRelatedLessonsCount(0);
         }
     };
-
     const renderTree = (parentId = null, level = 0) => {
         const children = nodes.filter(n => n.parent_id === parentId);
         if (children.length === 0) return null;

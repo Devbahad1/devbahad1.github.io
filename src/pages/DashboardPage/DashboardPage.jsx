@@ -129,7 +129,7 @@ const KeyCard = ({
             badgeHover: '#d97706',
             iconBoxBg: '#ffedd5',
             iconColor: '#b45309',
-            
+
         }
         : {
             border: '2px solid #a7f3d0',
@@ -328,7 +328,7 @@ export default function DashboardPage() {
             .select('role')
             .eq('id', userId)
             .single();
-        
+
         return data?.role === 'admin' || data?.role === 'manager';
     };
 
@@ -340,7 +340,7 @@ export default function DashboardPage() {
                 .select('id, name, group_type_id, parent_id')
                 .in('group_type_id', [2, 3]) // גדוד ופלוגה
                 .order('name');
-            
+
             setUserTeams(allGroups || []);
         } else {
             // משתמש רגיל - טען את הפלוגה שלו + הצוותים תחתיה
@@ -487,7 +487,7 @@ export default function DashboardPage() {
                 minHeight: '100vh',
                 py: 4,
                 overflowX: 'hidden',
-                bgcolor: isDark ? '#0f172a' : '#ffffff',
+                bgcolor: 'transparent',
                 boxSizing: 'border-box',
             }}
         >
@@ -696,16 +696,16 @@ export default function DashboardPage() {
                 dir="rtl"
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{ 
-                    sx: { 
+                PaperProps={{
+                    sx: {
                         borderRadius: '24px',
                         bgcolor: '#f8f9fa',
-                    } 
+                    }
                 }}
             >
                 {/* Header */}
-                <Box sx={{ 
-                    p: 3, 
+                <Box sx={{
+                    p: 3,
                     pb: 2,
                     display: 'flex',
                     flexDirection: 'column',
@@ -727,16 +727,16 @@ export default function DashboardPage() {
                         <CloseIcon />
                     </IconButton>
 
-                    <Typography sx={{ 
-                        fontSize: '1.5rem', 
+                    <Typography sx={{
+                        fontSize: '1.5rem',
                         fontWeight: 900,
                         color: '#0f172a',
                         mb: 0.5
                     }}>
                         משוך מפתח
                     </Typography>
-                    
-                    <Typography sx={{ 
+
+                    <Typography sx={{
                         fontSize: '0.95rem',
                         color: '#64748b',
                         fontWeight: 600
@@ -749,7 +749,7 @@ export default function DashboardPage() {
                     <Stack spacing={3}>
                         {/* בחירת צוות */}
                         <Box>
-                            <Typography sx={{ 
+                            <Typography sx={{
                                 textAlign: 'right',
                                 mb: 1.5,
                                 fontSize: '0.95rem',
@@ -782,8 +782,8 @@ export default function DashboardPage() {
                                         בחר פלוגה או צוות...
                                     </MenuItem>
                                     {userTeams.map((team) => (
-                                        <MenuItem 
-                                            key={team.id} 
+                                        <MenuItem
+                                            key={team.id}
                                             value={team.id}
                                             sx={{ justifyContent: 'flex-end' }}
                                         >
@@ -797,7 +797,7 @@ export default function DashboardPage() {
                         {/* שם ידני (מוצג לאחר בחירת צוות) */}
                         {selectedTeamId && (
                             <Box>
-                                <Typography sx={{ 
+                                <Typography sx={{
                                     textAlign: 'right',
                                     mb: 1.5,
                                     fontSize: '0.9rem',
@@ -831,21 +831,21 @@ export default function DashboardPage() {
                             </Box>
                         )}
 
-                        <Box sx={{ 
-                            height: '1px', 
+                        <Box sx={{
+                            height: '1px',
                             bgcolor: '#e2e8f0',
                             my: 1
                         }} />
 
                         {/* שעות */}
-                        <Box sx={{ 
+                        <Box sx={{
                             display: 'grid',
                             gridTemplateColumns: '1fr 1fr',
                             gap: 3
                         }}>
                             {/* שעת סיום */}
                             <Box>
-                                <Typography sx={{ 
+                                <Typography sx={{
                                     textAlign: 'right',
                                     mb: 1.5,
                                     fontSize: '0.95rem',
@@ -886,7 +886,7 @@ export default function DashboardPage() {
 
                             {/* שעת התחלה */}
                             <Box>
-                                <Typography sx={{ 
+                                <Typography sx={{
                                     textAlign: 'right',
                                     mb: 1.5,
                                     fontSize: '0.95rem',
@@ -928,8 +928,8 @@ export default function DashboardPage() {
                     </Stack>
                 </DialogContent>
 
-                <DialogActions sx={{ 
-                    p: 3, 
+                <DialogActions sx={{
+                    p: 3,
                     pt: 0,
                     gap: 2,
                     display: 'grid',
@@ -939,7 +939,7 @@ export default function DashboardPage() {
                         fullWidth
                         variant="contained"
                         onClick={handleCheckout}
-                        sx={{ 
+                        sx={{
                             borderRadius: '14px',
                             py: 1.75,
                             bgcolor: '#10b981',
@@ -955,7 +955,7 @@ export default function DashboardPage() {
                     >
                         אשר משיכה
                     </Button>
-                    
+
                     <Button
                         fullWidth
                         variant="outlined"
@@ -963,7 +963,7 @@ export default function DashboardPage() {
                             setCheckoutKey(null);
                             setSelectedTeamId('');
                         }}
-                        sx={{ 
+                        sx={{
                             borderRadius: '14px',
                             py: 1.75,
                             bgcolor: '#ffffff',
