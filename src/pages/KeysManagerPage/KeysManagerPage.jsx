@@ -448,7 +448,7 @@ const KeysManager = () => {
             </Box>
 
             {/* Table */}
-            <TableContainer component={Paper} sx={{ borderRadius: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <TableContainer component={Paper} sx={{ borderRadius: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'auto' }}>
                 <Table>
                     <TableHead sx={{ bgcolor: isDark ? '#334155' : '#f8fafc' }}>
                         <TableRow>
